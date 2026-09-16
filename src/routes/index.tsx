@@ -46,12 +46,13 @@ const heatColor = (p: number, max: number) => {
 };
 
 function Index() {
-  const [values, setValues] = useState<Record<keyof OddsInput, string>>({
+  const [values, setValues] = useState<Record<string, string>>({
     home: "2.10",
     draw: "3.40",
     away: "3.60",
     over: "1.85",
     under: "1.95",
+    exact22: "", // Novo stanje za pohranu ručne kvote rezultata 2-2
   });
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
@@ -59,7 +60,7 @@ function Index() {
   const [error, setError] = useState<string | null>(null);
   const { canInstall, installed, install } = usePwaInstall();
 
-  const set = (k: keyof OddsInput, v: string) => setValues((p) => ({ ...p, [k]: v }));
+  const set = (k: string, v: string) => setValues((p) => ({ ...p, [k]: v }));
 
   const onCalculate = () => {
     const nums = FIELDS.map((f) => parseFloat(values[f.key].replace(",", ".")));
@@ -68,7 +69,17 @@ function Index() {
       return;
     }
     const [h, d, a, o, u] = nums as [number, number, number, number, number];
-    const odds: OddsInput = { home: h, draw: d, away: a, over: o, under: u };
+    
+    // Čitanje neobaveznog polja za kvotu 2-2
+    const rawExact22 = values.exact22.trim().replace(",", ".");
+    const exact22Num = rawExact22 ? parseFloat(rawExact22) : undefined;
+
+    if (exact22Num !== undefined && (isNaN(exact22Num) || exact22Num <= 1.01)) {
+      setError("Tečaj za rezultat 2-2 mora biti veći od 1.01 ukoliko ga unosite.");
+      return;
+    }
+
+    const odds: OddsInput = { home: h, draw: d, away: a, over: o, under: u, exact22: exact22Num };
     setError(null);
     setLoading(true);
     setResult(null);
@@ -80,6 +91,9 @@ function Index() {
   };
 
   const maxCell = result ? result.best.prob : 1;
+
+  // Statički nizovi za crtanje matrice od 0 do 5 golova na sučelju
+  const goalsRange =;
 
   return (
     <main className="min-h-screen bg-background bg-hero">
@@ -97,20 +111,29 @@ function Index() {
               maržu, izvodi očekivane golove i računa matricu 10 × 10.
             </p>
           </div>
-          {canInstall && (
-            <Button variant="outline" onClick={install} className="shrink-0">
-              <Download className="size-4" aria-hidden /> Instaliraj aplikaciju
-            </Button>
-          )}
-          {installed && (
-            <span className="shrink-0 text-xs text-muted-foreground">Aplikacija je instalirana</span>
-          )}
+          <div className="flex flex-col items-end gap-2">
+            {result?.calibrated && (
+              <div className="inline-flex items-center gap-1.5 bg-primary/10 border border-primary/30 rounded-full px-3 py-1 text-xs font-semibold text-primary animate-pulse shadow-sm">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                Sustav kalibriran pomoću kvote 2-2
+              </div>
+            )}
+            {canInstall && (
+              <Button variant="outline" onClick={install} className="shrink-0">
+                <Download className="size-4" aria-hidden /> Instaliraj aplikaciju
+              </Button>
+            )}
+            {installed && (
+              <span className="shrink-0 text-xs text-muted-foreground">Aplikacija je instalirana</span>
+            )}
+          </div>
         </header>
 
         <section className="surface-panel mt-10 rounded-2xl p-5 sm:p-7">
           <h2 className="flex items-center gap-2 text-lg font-semibold">
             <Calculator className="size-5 text-primary" aria-hidden /> Unos tečajeva
           </h2>
+          
           <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3 lg:grid-cols-5">
             {FIELDS.map((f) => (
               <div key={f.key} className="space-y-2">
@@ -127,6 +150,24 @@ function Index() {
                 />
               </div>
             ))}
+          </div>
+
+          {/* NOVO POLJE: Unos za kvotu rezultata 2-2 podijeljen u zaseban čist red s vizualnim okvirom */}
+          <div className="mt-5 border-t border-border/40 pt-4 max-w-xs">
+            <div className="space-y-2">
+              <Label htmlFor="exact22" className="text-xs font-medium text-slate-300 flex justify-between items-center">
+                <span>Kvota na točan rezultat 2-2</span>
+                <span className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider bg-secondary/80 px-1.5 py-0.5 rounded">Paralelno pravilo</span>
+              </Label>
+              <Input
+                id="exact22"
+                inputMode="decimal"
+                placeholder="npr. 14.50 (Neobavezno)"
+                value={values.exact22}
+                onChange={(e) => set("exact22", e.target.value)}
+                className="h-12 bg-secondary/50 text-center text-md font-mono font-semibold border-primary/20 focus-visible:ring-primary/40"
+              />
+            </div>
           </div>
 
           {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
@@ -154,7 +195,7 @@ function Index() {
             <div className="text-center">
               <p className="font-semibold">Statistička analiza u tijeku…</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Uklanjam maržu · računam očekivane golove · gradim Poissonovu matricu
+                Uklanjam maržu · primjenjujem pravilo 2-2 · računam očekivane golove · gradim Poissonovu matricu
               </p>
             </div>
           </section>
@@ -163,152 +204,16 @@ function Index() {
         {result && usedOdds && !loading && (
           <div className="mt-6 space-y-6">
             <section className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-              <div className="surface-panel animate-rise rounded-2xl p-7 lg:col-span-2">
-                <h2 className="flex items-center gap-2 text-sm font-medium tracking-wide text-muted-foreground uppercase">
-                  <Target className="size-4 text-primary" aria-hidden /> Najizgledniji točan rezultat
-                </h2>
-                <p className="mt-6 text-center text-7xl font-black tracking-tighter tabular-nums sm:text-8xl">
-                  <span className="text-gradient">
-                    {result.best.home} - {result.best.away}
-                  </span>
-                </p>
-                <p className="mt-4 text-center text-xl font-semibold text-primary tabular-nums">
-                  {pct(result.best.prob)}
-                </p>
-                <p className="mt-2 text-center text-xs text-muted-foreground">
-                  vjerojatnost pogotka točnog rezultata
-                </p>
-              </div>
-
-              <div className="surface-panel animate-rise rounded-2xl p-6 lg:col-span-3">
-                <h2 className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
-                  Top 5 alternativnih rezultata
-                </h2>
-                <table className="mt-4 w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-xs text-muted-foreground">
-                      <th className="pb-2 font-medium">#</th>
-                      <th className="pb-2 font-medium">Rezultat</th>
-                      <th className="pb-2 text-right font-medium">Vjerojatnost</th>
-                      <th className="pb-2 text-right font-medium">Fer tečaj</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {result.top.slice(1, 6).map((s, i) => (
-                      <tr key={`${s.home}-${s.away}`} className="border-t border-border/70">
-                        <td className="py-2.5 text-muted-foreground tabular-nums">{i + 1}</td>
-                        <td className="py-2.5 font-semibold tabular-nums">
-                          {s.home} - {s.away}
-                        </td>
-                        <td className="py-2.5 text-right text-primary tabular-nums">
-                          {pct(s.prob)}
-                        </td>
-                        <td className="py-2.5 text-right text-muted-foreground tabular-nums">
-                          {(1 / s.prob).toFixed(2)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-
-            <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-              {[
-                { l: "xG domaćina (λ)", v: result.lambdaHome.toFixed(2) },
-                { l: "xG gosta (λ)", v: result.lambdaAway.toFixed(2) },
-                { l: "Ukupno golova (μ)", v: result.mu.toFixed(2) },
-                { l: "Kladioničarska margina", v: pct(result.margin1x2, 2) },
-              ].map((s) => (
-                <div key={s.l} className="surface-panel animate-rise rounded-xl p-4">
-                  <p className="text-xs text-muted-foreground">{s.l}</p>
-                  <p className="mt-2 text-2xl font-bold text-primary tabular-nums">{s.v}</p>
+              
+              {/* Najizgledniji točan rezultat */}
+              <div className="surface-panel animate-rise rounded-2xl p-7 lg:col-span-2 flex flex-col justify-between relative overflow-hidden">
+                <div>
+                  <h2 className="flex items-center gap-2 text-sm font-medium tracking-wide text-muted-foreground uppercase">
+                    <Target className="size-4 text-primary" aria-hidden /> Najizgledniji točan rezultat
+                  </h2>
+                  <p className="mt-6 text-center text-7xl font-black tracking-tighter tabular-nums sm:text-8xl">
+                    <span className="text-gradient">
+                      {result.best.home} - {result.best.away}
+                    </span>
+                  </p>
                 </div>
-              ))}
-            </section>
-
-            <section className="surface-panel animate-rise rounded-2xl p-5 sm:p-7">
-              <h2 className="flex items-center gap-2 text-sm font-medium tracking-wide text-muted-foreground uppercase">
-                <Percent className="size-4 text-primary" aria-hidden /> Analitička matrica rezultata
-              </h2>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Redovi = golovi domaćina, stupci = golovi gosta. Svjetlija polja znače veću
-                vjerojatnost.
-              </p>
-              <div className="mt-5 overflow-x-auto">
-                <div className="inline-grid grid-cols-[2.5rem_repeat(6,minmax(3rem,1fr))] gap-1">
-                  <div />
-                  {[0, 1, 2, 3, 4, 5].map((y) => (
-                    <div key={y} className="pb-1 text-center text-xs text-muted-foreground">
-                      {y}
-                    </div>
-                  ))}
-                  {[0, 1, 2, 3, 4, 5].map((x) => (
-                    <FragmentRow key={x} x={x} matrix={result.matrix} maxCell={maxCell} />
-                  ))}
-                </div>
-              </div>
-              <div className="mt-5 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-                {[
-                  { l: "Pobjeda 1", v: result.pHomeWin },
-                  { l: "Neriješeno X", v: result.pDrawResult },
-                  { l: "Pobjeda 2", v: result.pAwayWin },
-                  { l: "Oba daju gol", v: result.pBtts },
-                ].map((s) => (
-                  <div key={s.l} className="rounded-lg bg-secondary/50 p-3">
-                    <p className="text-xs text-muted-foreground">{s.l}</p>
-                    <p className="mt-1 font-semibold tabular-nums">{pct(s.v, 1)}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <section className="surface-panel animate-rise rounded-2xl p-5 sm:p-7">
-              <h2 className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
-                Detaljno matematičko objašnjenje
-              </h2>
-              <p className="mt-2 mb-4 text-xs text-muted-foreground">
-                Svaki korak izračuna, s pravim brojevima iz vaše analize.
-              </p>
-              <Explanation r={result} odds={usedOdds} />
-            </section>
-          </div>
-        )}
-
-        <footer className="mt-14 border-t border-border pt-6 text-xs text-muted-foreground">
-          StatX ScoreMaster PRO — alat je isključivo informativne i analitičke naravi. Klađenje nosi
-          rizik; igrajte odgovorno (18+).
-        </footer>
-      </div>
-    </main>
-  );
-}
-
-function FragmentRow({
-  x,
-  matrix,
-  maxCell,
-}: {
-  x: number;
-  matrix: number[][];
-  maxCell: number;
-}) {
-  return (
-    <>
-      <div className="flex items-center justify-center text-xs text-muted-foreground">{x}</div>
-      {[0, 1, 2, 3, 4, 5].map((y) => {
-        const p = matrix[x]?.[y] ?? 0;
-        return (
-          <div
-            key={y}
-            className="rounded-md px-1 py-3 text-center text-xs font-semibold tabular-nums transition-transform hover:scale-105"
-            style={heatColor(p, maxCell)}
-            title={`${x} - ${y}: ${pct(p)}`}
-          >
-            {(p * 100).toFixed(1)}
-          </div>
-        );
-      })}
-    </>
-  );
-}
