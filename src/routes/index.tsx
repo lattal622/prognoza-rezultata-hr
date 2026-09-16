@@ -63,18 +63,16 @@ function Index() {
   const set = (k: string, v: string) => setValues((p) => ({ ...p, [k]: v }));
 
   const onCalculate = () => {
-    // Dinamičko čitanje polja kroz generiranu petlicu
-    const nums = FIELDS.map((f) => parseFloat(values[f.key].replace(",", ".")));
-    if (nums.some((v) => !isFinite(v) || v <= 1.01)) {
+    const rawHome = parseFloat(values.home.replace(",", "."));
+    const rawDraw = parseFloat(values.draw.replace(",", "."));
+    const rawAway = parseFloat(values.away.replace(",", "."));
+    const rawOver = parseFloat(values.over.replace(",", "."));
+    const rawUnder = parseFloat(values.under.replace(",", "."));
+    
+    if (!rawHome || !rawDraw || !rawAway || !rawOver || !rawUnder || rawHome <= 1.01 || rawDraw <= 1.01 || rawAway <= 1.01 || rawOver <= 1.01 || rawUnder <= 1.01) {
       setError("Unesite ispravne tečajeve — svaka vrijednost mora biti veća od 1.01.");
       return;
     }
-    
-    const h = parseFloat(values.home.replace(",", "."));
-    const d = parseFloat(values.draw.replace(",", "."));
-    const a = parseFloat(values.away.replace(",", "."));
-    const o = parseFloat(values.over.replace(",", "."));
-    const u = parseFloat(values.under.replace(",", "."));
     
     const rawExact22 = values.exact22.trim().replace(",", ".");
     const exact22Num = rawExact22 ? parseFloat(rawExact22) : undefined;
@@ -84,7 +82,7 @@ function Index() {
       return;
     }
 
-    const odds: OddsInput = { home: h, draw: d, away: a, over: o, under: u, exact22: exact22Num };
+    const odds: OddsInput = { home: rawHome, draw: rawDraw, away: rawAway, over: rawOver, under: rawUnder, exact22: exact22Num };
     setError(null);
     setLoading(true);
     setResult(null);
@@ -217,6 +215,3 @@ function Index() {
                   </p>
                 </div>
                 <div className="mt-6 pt-4 border-t border-border/60 text-center">
-
-
-
