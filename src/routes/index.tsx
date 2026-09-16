@@ -1,3 +1,4 @@
+// STATX SCOREMASTER PRO - INICIJALIZACIJA NOVOG MODULA V2
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Download, Activity, Calculator, Target, Percent, Sigma } from "lucide-react";
@@ -26,7 +27,7 @@ export const Route = createFileRoute("/")({
       },
     ],
   }),
-  component: Index,
+  component: PredictorDashboard,
 });
 
 const FIELDS: { key: keyof OddsInput; label: string; hint: string }[] = [
@@ -45,7 +46,7 @@ const heatColor = (p: number, max: number) => {
   };
 };
 
-function Index() {
+function PredictorDashboard() {
   const [values, setValues] = useState<Record<string, string>>({
     home: "2.10",
     draw: "3.40",
@@ -214,4 +215,4 @@ function Index() {
                     </span>
                   </p>
                 </div>
-                <div className="mt-6 pt-4 border-t border-border/60 text-center">
+
