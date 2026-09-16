@@ -52,7 +52,7 @@ function Index() {
     away: "3.60",
     over: "1.85",
     under: "1.95",
-    exact22: "", // Novo stanje za pohranu ručne kvote rezultata 2-2
+    exact22: "",
   });
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
@@ -70,7 +70,6 @@ function Index() {
     }
     const [h, d, a, o, u] = nums as [number, number, number, number, number];
     
-    // Čitanje neobaveznog polja za kvotu 2-2
     const rawExact22 = values.exact22.trim().replace(",", ".");
     const exact22Num = rawExact22 ? parseFloat(rawExact22) : undefined;
 
@@ -91,8 +90,6 @@ function Index() {
   };
 
   const maxCell = result ? result.best.prob : 1;
-
-  // Statički nizovi za crtanje matrice od 0 do 5 golova na sučelju
   const goalsRange =;
 
   return (
@@ -152,7 +149,6 @@ function Index() {
             ))}
           </div>
 
-          {/* NOVO POLJE: Unos za kvotu rezultata 2-2 podijeljen u zaseban čist red s vizualnim okvirom */}
           <div className="mt-5 border-t border-border/40 pt-4 max-w-xs">
             <div className="space-y-2">
               <Label htmlFor="exact22" className="text-xs font-medium text-slate-300 flex justify-between items-center">
@@ -204,8 +200,6 @@ function Index() {
         {result && usedOdds && !loading && (
           <div className="mt-6 space-y-6">
             <section className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-              
-              {/* Najizgledniji točan rezultat */}
               <div className="surface-panel animate-rise rounded-2xl p-7 lg:col-span-2 flex flex-col justify-between relative overflow-hidden">
                 <div>
                   <h2 className="flex items-center gap-2 text-sm font-medium tracking-wide text-muted-foreground uppercase">
@@ -217,3 +211,10 @@ function Index() {
                     </span>
                   </p>
                 </div>
+                <div className="mt-6 pt-4 border-t border-border/60 text-center">
+                  <p className="text-xl font-bold text-primary font-mono">{pct(result.best.prob)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Fer tečaj: {(1 / result.best.prob).toFixed(2)}</p>
+                </div>
+              </div>
+
+
