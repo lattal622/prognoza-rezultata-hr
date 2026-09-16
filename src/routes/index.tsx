@@ -90,9 +90,6 @@ function Index() {
   };
 
   const maxCell = result ? result.best.prob : 1;
-  
-  // SIGURNO RJEŠENJE: Stvaranje niza brojeva bez uglatih zagrada, otporno na brisanje editora
-  const goalsRange = Array.from(Array(6).keys());
 
   return (
     <main className="min-h-screen bg-background bg-hero">
@@ -215,3 +212,8 @@ function Index() {
                 </div>
                 <div className="mt-6 pt-4 border-t border-border/60 text-center">
                   <p className="text-xl font-bold text-primary font-mono">{pct(result.best.prob)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Fer tečaj: {(1 / result.best.prob).toFixed(2)}</p>
+                </div>
+              </div>
+
+
