@@ -296,16 +296,19 @@ function FragmentRow({
   return (
     <>
       <div className="flex items-center justify-center text-xs text-muted-foreground">{x}</div>
-      {[0, 1, 2, 3, 4, 5].map((y) => (
-        <div
-          key={y}
-          className="rounded-md px-1 py-3 text-center text-xs font-semibold tabular-nums transition-transform hover:scale-105"
-          style={heatColor(matrix[x][y], maxCell)}
-          title={`${x} - ${y}: ${pct(matrix[x][y])}`}
-        >
-          {(matrix[x][y] * 100).toFixed(1)}
-        </div>
-      ))}
+      {[0, 1, 2, 3, 4, 5].map((y) => {
+        const p = matrix[x]?.[y] ?? 0;
+        return (
+          <div
+            key={y}
+            className="rounded-md px-1 py-3 text-center text-xs font-semibold tabular-nums transition-transform hover:scale-105"
+            style={heatColor(p, maxCell)}
+            title={`${x} - ${y}: ${pct(p)}`}
+          >
+            {(p * 100).toFixed(1)}
+          </div>
+        );
+      })}
     </>
   );
 }
