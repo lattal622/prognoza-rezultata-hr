@@ -1,0 +1,24 @@
+{
+  "name": "StatX ScoreMaster PRO",
+  "short_name": "ScoreMaster",
+  "description": "Profesionalni nogometni analitički alat za predviđanje točnog rezultata (Poissonova razdioba).",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "lang": "hr",
+  "icons": [
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
