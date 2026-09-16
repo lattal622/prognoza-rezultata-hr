@@ -47,6 +47,7 @@ export interface AnalysisResult {
   calibrated22?: number;
 }
 
+
 const MAX_GOALS = 9;
 
 function factorial(n: number): number {
@@ -56,7 +57,6 @@ function factorial(n: number): number {
 }
 
 export function poisson(lambda: number, k: number): number {
-  if (lambda <= 0) return k === 0 ? 1 : 0;
   return (Math.exp(-lambda) * Math.pow(lambda, k)) / factorial(k);
 }
 
@@ -109,74 +109,21 @@ export function analyze(input: OddsInput): AnalysisResult {
   const lambdaHome = (mu * shareHome) / norm;
   const lambdaAway = (mu * shareAway) / norm;
 
-  // Korak 3: Izrada osnovne Poissonove matrice (0-9)
-  let matrix: number[][] = [];
+  // Korak 3: Poissonova matrica 10x10
+  const matrix: number[][] = [];
+  const list: ScoreProb[] = [];
+  let coverage = 0;
   for (let x = 0; x <= MAX_GOALS; x++) {
     const row: number[] = [];
     for (let y = 0; y <= MAX_GOALS; y++) {
       const p = poisson(lambdaHome, x) * poisson(lambdaAway, y);
       row.push(p);
+      list.push({ home: x, away: y, prob: p });
+      coverage += p;
     }
     matrix.push(row);
   }
 
-  // PODACI ZA PARALELNU KALIBRACIJU POMOĆU KVOTE 2-2
-  let calibrated = false;
-  let raw22Exact = matrix[2][2];
-  let market22 = 0;
-  let factor22 = 1;
-  let calibrated22 = matrix[2][2];
-
-  if (input.exact22 && input.exact22 > 1) {
-    // Čišćenje marže s kvote za 2-2 koristeći opću 1X2 marginu
-    market22 = (1 / input.exact22) / (1 + margin1x2);
-
-    if (raw22Exact > 0.0001) {
-      factor22 = market22 / raw22Exact;
-      calibrated = true;
-
-      // Primjena Dixon-Coles faktora na remije i efikasne rezultate (ukupno golova >= 3)
-      for (let x = 0; x <= MAX_GOALS; x++) {
-        for (let y = 0; y <= MAX_GOALS; y++) {
-          if (x === y || (x + y) >= 3) {
-            // Težinski koeficijent (što je rezultat bliže strukturi 2-2, utjecaj je veći)
-            const weight = (x + y) / 4;
-            matrix[x][y] = matrix[x][y] * (1 + (factor22 - 1) * Math.min(weight, 1.2));
-          }
-        }
-      }
-      calibrated22 = matrix[2][2];
-    }
-  }
-
-  // NORMALIZACIJA MATRICE (Zbroj svih 100 polja mora biti točno 1.00 / 100%)
-  let currentTotalSum = 0;
-  for (let x = 0; x <= MAX_GOALS; x++) {
-    for (let y = 0; y <= MAX_GOALS; y++) {
-      currentTotalSum += matrix[x][y];
-    }
-  }
-  
-  if (currentTotalSum > 0) {
-    for (let x = 0; x <= MAX_GOALS; x++) {
-      for (let y = 0; y <= MAX_GOALS; y++) {
-        matrix[x][y] = matrix[x][y] / currentTotalSum;
-      }
-    }
-  }
-
-  // Generiranje liste rezultata iz kalibrirane i normalizirane matrice
-  const list: ScoreProb[] = [];
-  let coverage = 0;
-  for (let x = 0; x <= MAX_GOALS; x++) {
-    for (let y = 0; y <= MAX_GOALS; y++) {
-      const p = matrix[x][y];
-      list.push({ home: x, away: y, prob: p });
-      coverage += p;
-    }
-  }
-
-  // Sortiranje rezultata po novoj vjerojatnosti za "Najizgledniji" i "Top 5" prijedloga
   list.sort((a, b) => b.prob - a.prob);
 
   let pHomeWin = 0;
@@ -214,12 +161,6 @@ export function analyze(input: OddsInput): AnalysisResult {
     pAwayWin,
     pBtts,
     coverage,
-    calibrated,
-    raw22Exact,
-    market22,
-    poisson22: raw22Exact,
-    factor22,
-    calibrated22: matrix[2][2]
   };
 }
 
