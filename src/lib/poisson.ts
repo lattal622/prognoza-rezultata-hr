@@ -145,7 +145,7 @@ export function analyze(input: OddsInput): AnalysisResult {
     lambdaAway,
     matrix,
     top: list.slice(0, 6),
-    best: list[0],
+    best: list[0] as ScoreProb,
     pHomeWin,
     pDrawResult,
     pAwayWin,

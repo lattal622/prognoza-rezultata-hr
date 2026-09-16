@@ -67,13 +67,8 @@ function Index() {
       setError("Unesite ispravne tečajeve — svaka vrijednost mora biti veća od 1.01.");
       return;
     }
-    const odds: OddsInput = {
-      home: nums[0],
-      draw: nums[1],
-      away: nums[2],
-      over: nums[3],
-      under: nums[4],
-    };
+    const [h, d, a, o, u] = nums as [number, number, number, number, number];
+    const odds: OddsInput = { home: h, draw: d, away: a, over: o, under: u };
     setError(null);
     setLoading(true);
     setResult(null);
