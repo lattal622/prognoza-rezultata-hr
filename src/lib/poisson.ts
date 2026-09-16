@@ -4,6 +4,8 @@ export interface OddsInput {
   away: number;
   over: number;
   under: number;
+  /** Neobavezno: kvota na točan rezultat 2-2 */
+  exact22?: number;
 }
 
 export interface ScoreProb {
@@ -36,7 +38,15 @@ export interface AnalysisResult {
   pAwayWin: number;
   pBtts: number;
   coverage: number;
+  /** Kalibracija pomoću kvote 2-2 */
+  calibrated: boolean;
+  raw22Exact?: number;
+  market22?: number;
+  poisson22?: number;
+  factor22?: number;
+  calibrated22?: number;
 }
+
 
 const MAX_GOALS = 9;
 
