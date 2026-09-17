@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Download, Activity, Calculator, Target, Percent, Sigma, AlertCircle, Shield } from "lucide-react";
 
@@ -8,21 +7,7 @@ import { Label } from "@/components/ui/label";
 import { usePwaInstall } from "@/hooks/use-pwa-install";
 import { analyze, pct, type AnalysisResult, type OddsInput } from "@/lib/poisson";
 
-export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      { title: "StatX ScoreMaster PRO — Predviđanje točnog rezultata" },
-      {
-        name: "description",
-        content: "Profesionalni analitički alat s Dixon-Coles prilagodbom i dvostrukim sidrenjem tržišta.",
-      },
-    ],
-  }),
-  component: Index,
-});
-
-function Index() {
-  // Ovdje su definirane sve početne vrijednosti, uključujući i GG kvotu
+export default function Index() {
   const [values, setValues] = useState<Record<keyof OddsInput, string>>({
     home: "2.10",
     draw: "3.40",
@@ -40,7 +25,6 @@ function Index() {
   const set = (k: keyof OddsInput, v: string) => setValues((p) => ({ ...p, [k]: v }));
 
   const onCalculate = () => {
-    // Ručno izvlačenje svih 7 vrijednosti kako bi bili 100% sigurni da se sve šalje u matematički motor
     const h = parseFloat(String(values.home).replace(",", "."));
     const d = parseFloat(String(values.draw).replace(",", "."));
     const a = parseFloat(String(values.away).replace(",", "."));
@@ -101,7 +85,6 @@ function Index() {
             <Calculator className="size-5 text-primary" /> Unos osnovnih tečajeva
           </h2>
           
-          {/* Fiksni i jasni unosi za bazične kvote */}
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
             <div className="space-y-2">
               <Label htmlFor="home">Domaćin (1)</Label>
@@ -129,7 +112,6 @@ function Index() {
             <Shield className="size-4" /> Profesionalna Kalibracijska Sidra (Obavezno)
           </h2>
           
-          {/* Ovdje su sada prikazana oba polja jedno pored drugog */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl">
             <div className="space-y-2">
               <Label htmlFor="exact22" className="text-xs font-semibold text-muted-foreground">
@@ -173,16 +155,6 @@ function Index() {
           </Button>
         </section>
 
-        {loading && (
-          <section className="bg-card flex flex-col items-center gap-4 rounded-2xl p-10 text-center border">
-            <Sigma className="size-8 text-primary animate-spin" />
-            <div>
-              <p className="font-semibold text-foreground">Optimizacija matrice u tijeku…</p>
-              <p className="text-xs text-muted-foreground">Primjenjujem Dixon-Coles korekciju · Kalibriram dvostruka sidra (2-2 & GG)</p>
-            </div>
-          </section>
-        )}
-
         {!loading && result && result.best && (
           <section className="bg-card p-6 rounded-2xl shadow-md border border-primary/20 text-center space-y-4">
             <span className="inline-flex items-center gap-1.5 text-xs font-bold text-primary bg-primary/10 px-3 py-1 rounded-full uppercase tracking-wider">
@@ -209,5 +181,24 @@ function Index() {
 
             <div className="border-t border-border pt-4 text-left max-w-md mx-auto space-y-3">
               <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Sigurnosne procjene (Dvoznaci):</h3>
+              <div className="grid grid-cols-2 gap-2 text-xs text-center font-medium">
+                <div className="bg-secondary/40 p-2 rounded-lg">
+                  <p className="text-muted-foreground text-[10px]">Šansa 1X</p>
+                  <p className="text-sm font-bold text-foreground">{pct(result.pHomeWin + result.pDrawResult, 1)}</p>
+                </div>
+                <div className="bg-secondary/40 p-2 rounded-lg">
+                  <p className="text-muted-foreground text-[10px]">Šansa X2</p>
+                  <p className="text-sm font-bold text-foreground">{pct(result.pAwayWin + result.pDrawResult, 1)}</p>
+                </div>
+              </div>
+
+              <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider pt-2">Očekivana snaga napada (xG):</h3>
+              <div className="grid grid-cols-2 gap-4 text-sm bg-secondary/20 p-3 rounded-lg">
+                <div>Domaćin: <span className="font-bold text-foreground">{result.lambda?.toFixed(2) || "0.00"} golova</span></div>
+                <div>Gost: <span className="font-bold text-foreground">{result.lambdaAway?.toFixed(2) || "0.00"} golova</span></div>
+              </div>
+            </div>
+          </section>
+
 
 
