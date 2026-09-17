@@ -1,5 +1,3 @@
-
-```typescript
 import { solveLambdas } from "./solver";
 
 export interface FinalPrediction {
@@ -20,7 +18,7 @@ export interface OddsInput {
   over: number;
   under: number;
   exact22: number;
-  gg: number;
+  gg?: number;
 }
 
 export interface ScoreProb {
@@ -66,7 +64,6 @@ export function poisson(lambda: number, k: number): number {
   return (Math.exp(-lambda) * Math.pow(lambda, k)) / factorial(k);
 }
 
-// Dixon-Coles funkcija prilagodbe za niske rezultate (0-0, 1-0, 0-1, 1-1)
 export function getDixonColesAdj(h: number, a: number, lH: number, lA: number, rho: number): number {
   if (rho === 0) return 1;
   if (h === 0 && a === 0) return 1 - lH * lA * rho;
@@ -108,11 +105,9 @@ export function analyze(input: OddsInput): AnalysisResult {
   const pOver = rawOver / (1 + marginOu);
   const pUnder = rawUnder / (1 + marginOu);
 
-  // Ciljane vjerojatnosti iz profesionalnih sidara
   const p22Target = (1 / input.exact22) / (1 + margin1x2);
-  const pGgTarget = (1 / input.gg) / (1 + marginOu);
+  const pGgTarget = input.gg ? ((1 / input.gg) / (1 + marginOu)) : 0.55;
 
-  // Početna procjena
   const muInit = solveMu(pOver);
   const strengthHome = pHome + pDraw / 2;
   const strengthAway = pAway + pDraw / 2;
@@ -121,7 +116,6 @@ export function analyze(input: OddsInput): AnalysisResult {
   const lambdaHomeInit = (muInit * (strengthHome / total));
   const lambdaAwayInit = (muInit * (strengthAway / total));
 
-  // Pokretanje naprednog solvera s dvostrukim sidrenjem i Dixon-Coles traženjem
   const sol = solveLambdas({
     p1: pHome,
     pX: pDraw,
@@ -135,7 +129,6 @@ export function analyze(input: OddsInput): AnalysisResult {
   const lambdaAway = sol.lambdaAway;
   const rho = sol.rho;
 
-  // Izgradnja matrice s Dixon-Coles korekcijom realnosti
   const matrix: number[][] = [];
   const list: ScoreProb[] = [];
   let coverage = 0;
@@ -153,7 +146,7 @@ export function analyze(input: OddsInput): AnalysisResult {
         home: x, 
         away: y, 
         prob: p,
-        score: `${x}-${y}`,
+        score: x + "-" + y,
         odds: parseFloat((1 / (p * (1 / avgMargin))).toFixed(2))
       });
       coverage += p;
@@ -197,7 +190,7 @@ export function analyze(input: OddsInput): AnalysisResult {
     pBtts,
     coverage,
     final: {
-      score: bestResult.score || `${bestResult.home}-${bestResult.away}`,
+      score: bestResult.score || (bestResult.home + "-" + bestResult.away),
       home: bestResult.home,
       away: bestResult.away,
       prob: bestResult.prob,
@@ -210,4 +203,5 @@ export function analyze(input: OddsInput): AnalysisResult {
 }
 
 export const pct = (v: number, d = 1) => `${(v * 100).toFixed(d)} %`;
+
 
