@@ -25,6 +25,8 @@ export interface ScoreProb {
   home: number;
   away: number;
   prob: number;
+  score?: string; // Dodano radi kompatibilnosti s prikazom
+  odds?: number;  // Dodano radi kompatibilnosti s prikazom
 }
 
 export interface AnalysisResult {
@@ -40,7 +42,8 @@ export interface AnalysisResult {
   pAway: number;
   pOver: number;
   pUnder: number;
-  mu: number;
+  mu: number; // Ukupni očekivani golovi
+  lambda: number; // Očekivani golovi domaćina (dodano radi UI komponente)
   lambdaHome: number;
   lambdaAway: number;
   matrix: number[][];
@@ -61,7 +64,6 @@ export interface AnalysisResult {
   solverError?: number | undefined;
   final: FinalPrediction;
 }
-
 
 const MAX_GOALS = 9;
 
@@ -125,8 +127,6 @@ export function analyze(input: OddsInput): AnalysisResult {
   let lambdaAway = (mu * shareAway) / norm;
 
   // Korak 2b: SOLVER — ako je unesena kvota 2-2, ona povezuje sva tržišta.
-  // Tražimo par (λ_dom, λ_gost) koji istovremeno najbolje reproducira
-  // 1X2, Manje od 2.5 i točan rezultat 2-2 (metoda najmanjih kvadrata).
   let calibrated = false;
   let raw22Exact: number | undefined;
   let market22: number | undefined;
@@ -140,31 +140,45 @@ export function analyze(input: OddsInput): AnalysisResult {
     market22 = raw22Exact / (1 + margin1x2);
     poisson22 = poisson(lambdaHome, 2) * poisson(lambdaAway, 2);
 
-    const sol = solveLambdas({
-      p1: pHome,
-      pX: pDraw,
-      p2: pAway,
-      pUnder,
-      p22: market22,
-    });
-    lambdaHome = sol.lambdaHome;
-    lambdaAway = sol.lambdaAway;
-    solverError = sol.error;
-    calibrated22 = poisson(lambdaHome, 2) * poisson(lambdaAway, 2);
-    factor22 = poisson22 > 0 ? market22 / poisson22 : undefined;
-    calibrated = true;
+    try {
+      const sol = solveLambdas({
+        p1: pHome,
+        pX: pDraw,
+        p2: pAway,
+        pUnder,
+        p22: market22,
+      });
+      lambdaHome = sol.lambdaHome;
+      lambdaAway = sol.lambdaAway;
+      solverError = sol.error;
+      calibrated22 = poisson(lambdaHome, 2) * poisson(lambdaAway, 2);
+      factor22 = poisson22 > 0 ? market22 / poisson22 : undefined;
+      calibrated = true;
+    } catch (e) {
+      console.error("Solver error, falling back to basic distribution", e);
+    }
   }
 
   // Korak 3: Poissonova matrica 10x10
   const matrix: number[][] = [];
   const list: ScoreProb[] = [];
   let coverage = 0;
+  
+  // Prosječna margina koju ponovno dodajemo izračunatim kvotama rezultata radi realnosti
+  const avgMargin = 1 + margin1x2; 
+
   for (let x = 0; x <= MAX_GOALS; x++) {
     const row: number[] = [];
     for (let y = 0; y <= MAX_GOALS; y++) {
       const p = poisson(lambdaHome, x) * poisson(lambdaAway, y);
       row.push(p);
-      list.push({ home: x, away: y, prob: p });
+      list.push({ 
+        home: x, 
+        away: y, 
+        prob: p,
+        score: `${x}-${y}`,
+        odds: parseFloat((1 / (p * (1 / avgMargin))).toFixed(2))
+      });
       coverage += p;
     }
     matrix.push(row);
@@ -183,6 +197,8 @@ export function analyze(input: OddsInput): AnalysisResult {
     if (s.home > 0 && s.away > 0) pBtts += s.prob;
   }
 
+  const bestResult = list[0] as ScoreProb;
+
   return {
     margin1x2,
     marginOu,
@@ -196,12 +212,13 @@ export function analyze(input: OddsInput): AnalysisResult {
     pAway,
     pOver,
     pUnder,
-    mu,
+    mu: lambdaHome + lambdaAway, // Ukupni golovi
+    lambda: lambdaHome,          // Domaći golovi izloženi kao 'lambda' za UI karticu
     lambdaHome,
     lambdaAway,
     matrix,
     top: list.slice(0, 6),
-    best: list[0] as ScoreProb,
+    best: bestResult,
     pHomeWin,
     pDrawResult,
     pAwayWin,
@@ -215,12 +232,12 @@ export function analyze(input: OddsInput): AnalysisResult {
     calibrated22,
     solverError,
     final: {
-      score: `${(list[0] as ScoreProb).home}-${(list[0] as ScoreProb).away}`,
-      home: (list[0] as ScoreProb).home,
-      away: (list[0] as ScoreProb).away,
-      prob: (list[0] as ScoreProb).prob,
-      fairOdds: 1 / (list[0] as ScoreProb).prob,
-      marketOdds: 1 / ((list[0] as ScoreProb).prob * (1 + margin1x2)),
+      score: bestResult.score || `${bestResult.home}-${bestResult.away}`,
+      home: bestResult.home,
+      away: bestResult.away,
+      prob: bestResult.prob,
+      fairOdds: 1 / bestResult.prob,
+      marketOdds: bestResult.odds || (1 / (bestResult.prob * avgMargin)),
       expectedHomeGoals: lambdaHome,
       expectedAwayGoals: lambdaAway,
     },
@@ -228,3 +245,4 @@ export function analyze(input: OddsInput): AnalysisResult {
 }
 
 export const pct = (v: number, d = 2) => `${(v * 100).toFixed(d)} %`;
+
