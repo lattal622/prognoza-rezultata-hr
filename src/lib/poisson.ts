@@ -106,8 +106,39 @@ export function analyze(input: OddsInput): AnalysisResult {
   const shareAway = Math.pow(strengthAway / total, 0.85);
   const norm = shareHome + shareAway;
 
-  const lambdaHome = (mu * shareHome) / norm;
-  const lambdaAway = (mu * shareAway) / norm;
+  let lambdaHome = (mu * shareHome) / norm;
+  let lambdaAway = (mu * shareAway) / norm;
+
+  // Korak 2b: SOLVER — ako je unesena kvota 2-2, ona povezuje sva tržišta.
+  // Tražimo par (λ_dom, λ_gost) koji istovremeno najbolje reproducira
+  // 1X2, Manje od 2.5 i točan rezultat 2-2 (metoda najmanjih kvadrata).
+  let calibrated = false;
+  let raw22Exact: number | undefined;
+  let market22: number | undefined;
+  let poisson22: number | undefined;
+  let factor22: number | undefined;
+  let calibrated22: number | undefined;
+  let solverError: number | undefined;
+
+  if (input.exact22 && isFinite(input.exact22) && input.exact22 > 1.01) {
+    raw22Exact = 1 / input.exact22;
+    market22 = raw22Exact / (1 + margin1x2);
+    poisson22 = poisson(lambdaHome, 2) * poisson(lambdaAway, 2);
+
+    const sol = solveLambdas({
+      p1: pHome,
+      pX: pDraw,
+      p2: pAway,
+      pUnder,
+      p22: market22,
+    });
+    lambdaHome = sol.lambdaHome;
+    lambdaAway = sol.lambdaAway;
+    solverError = sol.error;
+    calibrated22 = poisson(lambdaHome, 2) * poisson(lambdaAway, 2);
+    factor22 = poisson22 > 0 ? market22 / poisson22 : undefined;
+    calibrated = true;
+  }
 
   // Korak 3: Poissonova matrica 10x10
   const matrix: number[][] = [];
