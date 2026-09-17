@@ -63,13 +63,23 @@ function Index() {
   const set = (k: keyof OddsInput, v: string) => setValues((p) => ({ ...p, [k]: v }));
 
   const onCalculate = () => {
-    const nums = FIELDS.map((f) => parseFloat(values[f.key].replace(",", ".")));
+    const nums = FIELDS.map((f) => parseFloat(String(values[f.key]).replace(",", ".")));
     if (nums.some((v) => !isFinite(v) || v <= 1.01)) {
       setError("Unesite ispravne tečajeve — svaka vrijednost mora biti veća od 1.01.");
       return;
     }
+    const raw22 = String(values.exact22 ?? "").trim();
+    let exact22: number | undefined;
+    if (raw22 !== "") {
+      const v22 = parseFloat(raw22.replace(",", "."));
+      if (!isFinite(v22) || v22 <= 1.01) {
+        setError("Kvota na točan rezultat 2-2 mora biti veća od 1.01 ili ostavljena prazna.");
+        return;
+      }
+      exact22 = v22;
+    }
     const [h, d, a, o, u] = nums as [number, number, number, number, number];
-    const odds: OddsInput = { home: h, draw: d, away: a, over: o, under: u };
+    const odds: OddsInput = { home: h, draw: d, away: a, over: o, under: u, exact22 };
     setError(null);
     setLoading(true);
     setResult(null);
