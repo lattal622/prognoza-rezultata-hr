@@ -52,6 +52,7 @@ function Index() {
     away: "3.60",
     over: "1.85",
     under: "1.95",
+    exact22: "",
   });
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
