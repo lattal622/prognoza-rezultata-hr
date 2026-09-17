@@ -129,6 +129,36 @@ P(${b.home} - ${b.away}) = ${n(pH)} × ${n(pA)} = ${n(b.prob)}  →  ${pct(b.pro
           </p>
         </AccordionContent>
       </AccordionItem>
+
+      {r.calibrated && (
+        <AccordionItem value="k5" className="border-border">
+          <AccordionTrigger className="text-left text-base font-semibold">
+            Korak 5 — Kalibracija pomoću kvote na točan rezultat 2-2
+          </AccordionTrigger>
+          <AccordionContent className="space-y-3 text-sm leading-relaxed text-muted-foreground">
+            <p>
+              Unijeli ste kvotu {odds.exact22} na točan rezultat 2-2. Iz nje računamo fer tržišnu
+              vjerojatnost (uz maržu iz 1X2 tržišta) i uspoređujemo je s čistom Poissonovom
+              vrijednošću:
+            </p>
+            <pre className="overflow-x-auto rounded-lg bg-secondary/60 p-3 font-mono text-xs text-foreground">
+{`1 / ${odds.exact22} = ${n(r.raw22Exact ?? 0)}
+P_tržišno(2-2) = ${n(r.raw22Exact ?? 0)} / (1 + ${n(r.margin1x2)}) = ${pct(r.market22 ?? 0)}
+P_Poisson(2-2) = ${pct(r.poisson22 ?? 0)}
+
+Faktor prilagodbe F = ${pct(r.market22 ?? 0)} / ${pct(r.poisson22 ?? 0)} = ${n(r.factor22 ?? 1, 3)}
+Nakon kalibracije i normalizacije:  P(2-2) = ${pct(r.calibrated22 ?? 0)}`}
+            </pre>
+            <p>
+              Faktor F primjenjuje se proporcionalno na cijelu matricu — najjače na rezultate blizu
+              2-2, uz dodatni naglasak na remije (1-1, 2-2, 3-3) i rezultate s više golova. Zatim se
+              svih 100 polja normalizira tako da zbroj iznosi točno 100 %. Zbog toga su
+              najizgledniji rezultat i top 5 alternativa izvedeni iz ove kalibrirane matrice, što
+              predikciju približava stvarnom tržištu.
+            </p>
+          </AccordionContent>
+        </AccordionItem>
+      )}
     </Accordion>
   );
 }

@@ -257,6 +257,12 @@ function Index() {
               ))}
             </section>
 
+            {result.calibrated && (
+              <p className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                <Activity className="size-3.5" aria-hidden /> Sustav kalibriran pomoću kvote 2-2
+              </p>
+            )}
+
             <section className="surface-panel animate-rise rounded-2xl p-5 sm:p-7">
               <h2 className="flex items-center gap-2 text-sm font-medium tracking-wide text-muted-foreground uppercase">
                 <Percent className="size-4 text-primary" aria-hidden /> Analitička matrica rezultata
