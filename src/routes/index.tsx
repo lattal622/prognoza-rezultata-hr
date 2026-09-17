@@ -21,15 +21,8 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-const FIELDS: { key: keyof Omit<OddsInput, 'exact22' | 'gg'>; label: string; hint: string }[] = [
-  { key: "home", label: "Domaćin (1)", hint: "Tečaj na pobjedu domaćina" },
-  { key: "draw", label: "Neriješeno (X)", hint: "Tečaj na remi" },
-  { key: "away", label: "Gost (2)", hint: "Tečaj na pobjedu gosta" },
-  { key: "over", label: "Više od 2.5", hint: "Tečaj na 3+ gola" },
-  { key: "under", label: "Manje od 2.5", hint: "Tečaj na 0-2 gola" },
-];
-
 function Index() {
+  // Ovdje su definirane sve početne vrijednosti, uključujući i GG kvotu
   const [values, setValues] = useState<Record<keyof OddsInput, string>>({
     home: "2.10",
     draw: "3.40",
@@ -47,29 +40,25 @@ function Index() {
   const set = (k: keyof OddsInput, v: string) => setValues((p) => ({ ...p, [k]: v }));
 
   const onCalculate = () => {
-    const nums = FIELDS.map((f) => parseFloat(String(values[f.key]).replace(",", ".")));
-    if (nums.some((v) => !isFinite(v) || v <= 1.01)) {
-      setError("Unesite ispravne tečajeve — svaka vrijednost mora biti veća od 1.01.");
+    // Ručno izvlačenje svih 7 vrijednosti kako bi bili 100% sigurni da se sve šalje u matematički motor
+    const h = parseFloat(String(values.home).replace(",", "."));
+    const d = parseFloat(String(values.draw).replace(",", "."));
+    const a = parseFloat(String(values.away).replace(",", "."));
+    const o = parseFloat(String(values.over).replace(",", "."));
+    const u = parseFloat(String(values.under).replace(",", "."));
+    const v22 = parseFloat(String(values.exact22).replace(",", "."));
+    const vGg = parseFloat(String(values.gg).replace(",", "."));
+
+    if (!isFinite(h) || !isFinite(d) || !isFinite(a) || !isFinite(o) || !isFinite(u) || !isFinite(v22) || !isFinite(vGg)) {
+      setError("Molimo unesite ispravne tečajeve — sva polja moraju biti popunjena brojevima većim od 1.01.");
       return;
     }
 
-    const raw22 = String(values.exact22 ?? "").trim();
-    const rawGg = String(values.gg ?? "").trim();
-    
-    if (raw22 === "" || rawGg === "") {
-      setError("Polja 'Kvota 2-2' i 'Kvota Oba tima daju gol (GG)' su obavezna za maksimalnu točnost.");
-      return;
-    }
-
-    const v22 = parseFloat(raw22.replace(",", "."));
-    const vGg = parseFloat(rawGg.replace(",", "."));
-
-    if (!isFinite(v22) || v22 <= 1.01 || !isFinite(vGg) || vGg <= 1.01) {
+    if (h <= 1.01 || d <= 1.01 || a <= 1.01 || o <= 1.01 || u <= 1.01 || v22 <= 1.01 || vGg <= 1.01) {
       setError("Sve kvote moraju biti veće od 1.01.");
       return;
     }
 
-    const [h, d, a, o, u] = nums as [number, number, number, number, number];
     const odds: OddsInput = { home: h, draw: d, away: a, over: o, under: u, exact22: v22, gg: vGg };
     
     setError(null);
@@ -112,24 +101,35 @@ function Index() {
             <Calculator className="size-5 text-primary" /> Unos osnovnih tečajeva
           </h2>
           
+          {/* Fiksni i jasni unosi za bazične kvote */}
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-            {FIELDS.map((f) => (
-              <div key={f.key} className="space-y-2">
-                <Label htmlFor={f.key} className="text-xs text-muted-foreground">{f.label}</Label>
-                <Input
-                  id={f.key}
-                  inputMode="decimal"
-                  value={values[f.key]}
-                  onChange={(e) => set(f.key, e.target.value)}
-                  className="h-12 text-center text-lg font-semibold"
-                />
-              </div>
-            ))}
+            <div className="space-y-2">
+              <Label htmlFor="home">Domaćin (1)</Label>
+              <Input id="home" inputMode="decimal" value={values.home} onChange={(e) => set("home", e.target.value)} className="h-12 text-center text-lg font-semibold" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="draw">Neriješeno (X)</Label>
+              <Input id="draw" inputMode="decimal" value={values.draw} onChange={(e) => set("draw", e.target.value)} className="h-12 text-center text-lg font-semibold" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="away">Gost (2)</Label>
+              <Input id="away" inputMode="decimal" value={values.away} onChange={(e) => set("away", e.target.value)} className="h-12 text-center text-lg font-semibold" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="over">Više od 2.5</Label>
+              <Input id="over" inputMode="decimal" value={values.over} onChange={(e) => set("over", e.target.value)} className="h-12 text-center text-lg font-semibold" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="under">Manje od 2.5</Label>
+              <Input id="under" inputMode="decimal" value={values.under} onChange={(e) => set("under", e.target.value)} className="h-12 text-center text-lg font-semibold" />
+            </div>
           </div>
 
           <h2 className="flex items-center gap-2 text-md font-semibold mt-6 mb-3 text-primary">
             <Shield className="size-4" /> Profesionalna Kalibracijska Sidra (Obavezno)
           </h2>
+          
+          {/* Ovdje su sada prikazana oba polja jedno pored drugog */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl">
             <div className="space-y-2">
               <Label htmlFor="exact22" className="text-xs font-semibold text-muted-foreground">
@@ -207,19 +207,7 @@ function Index() {
               </div>
             </div>
 
-            {/* Vjerojatnosti za Dvoznake i GG */}
             <div className="border-t border-border pt-4 text-left max-w-md mx-auto space-y-3">
               <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Sigurnosne procjene (Dvoznaci):</h3>
-              <div className="grid grid-cols-2 gap-2 text-xs text-center font-medium">
-                <div className="bg-secondary/40 p-2 rounded-lg">
-                  <p className="text-muted-foreground text-[10px]">Šansa 1X</p>
-                  <p className="text-sm font-bold text-foreground">{pct(result.pHomeWin + result.pDrawResult, 1)}</p>
-                </div>
-                <div className="bg-secondary/40 p-2 rounded-lg">
-                  <p className="text-muted-foreground text-[10px]">Šansa X2</p>
-                  <p className="text-sm font-bold text-foreground">{pct(result.pAwayWin + result.pDrawResult, 1)}</p>
-                </div>
-              </div>
 
-              <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider pt-2">Očekivana snaga napada (xG):</h3>
 
