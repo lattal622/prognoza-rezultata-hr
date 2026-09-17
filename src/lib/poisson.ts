@@ -1,3 +1,5 @@
+
+```typescript
 import { solveLambdas } from "./solver";
 
 export interface FinalPrediction {
@@ -17,33 +19,28 @@ export interface OddsInput {
   away: number;
   over: number;
   under: number;
-  /** Neobavezno: kvota na točan rezultat 2-2 */
-  exact22?: number | undefined;
+  exact22: number;
+  gg: number;
 }
 
 export interface ScoreProb {
   home: number;
   away: number;
   prob: number;
-  score?: string; // Dodano radi kompatibilnosti s prikazom
-  odds?: number;  // Dodano radi kompatibilnosti s prikazom
+  score?: string;
+  odds?: number;
 }
 
 export interface AnalysisResult {
   margin1x2: number;
   marginOu: number;
-  rawHome: number;
-  rawDraw: number;
-  rawAway: number;
-  rawOver: number;
-  rawUnder: number;
   pHome: number;
   pDraw: number;
   pAway: number;
   pOver: number;
   pUnder: number;
-  mu: number; // Ukupni očekivani golovi
-  lambda: number; // Očekivani golovi domaćina (dodano radi UI komponente)
+  mu: number;
+  lambda: number;
   lambdaHome: number;
   lambdaAway: number;
   matrix: number[][];
@@ -54,18 +51,10 @@ export interface AnalysisResult {
   pAwayWin: number;
   pBtts: number;
   coverage: number;
-  /** Kalibracija pomoću kvote 2-2 */
-  calibrated: boolean;
-  raw22Exact?: number | undefined;
-  market22?: number | undefined;
-  poisson22?: number | undefined;
-  factor22?: number | undefined;
-  calibrated22?: number | undefined;
-  solverError?: number | undefined;
   final: FinalPrediction;
 }
 
-const MAX_GOALS = 9;
+const MAX_GOALS = 8;
 
 function factorial(n: number): number {
   let r = 1;
@@ -77,12 +66,20 @@ export function poisson(lambda: number, k: number): number {
   return (Math.exp(-lambda) * Math.pow(lambda, k)) / factorial(k);
 }
 
-/** P(ukupno golova <= 2) za Poissonovu razdiobu s očekivanjem mu */
+// Dixon-Coles funkcija prilagodbe za niske rezultate (0-0, 1-0, 0-1, 1-1)
+export function getDixonColesAdj(h: number, a: number, lH: number, lA: number, rho: number): number {
+  if (rho === 0) return 1;
+  if (h === 0 && a === 0) return 1 - lH * lA * rho;
+  if (h === 1 && a === 0) return 1 + lA * rho;
+  if (h === 0 && a === 1) return 1 + lH * rho;
+  if (h === 1 && a === 1) return 1 - rho;
+  return 1;
+}
+
 function cumulativeUnder3(mu: number): number {
   return poisson(mu, 0) + poisson(mu, 1) + poisson(mu, 2);
 }
 
-/** Obrnuti inženjering: pronađi mu takav da je P(Over 2.5) = ciljana vjerojatnost */
 export function solveMu(pOver: number): number {
   let lo = 0.05;
   let hi = 12;
@@ -102,7 +99,6 @@ export function analyze(input: OddsInput): AnalysisResult {
   const rawOver = 1 / input.over;
   const rawUnder = 1 / input.under;
 
-  // Korak 1: uklanjanje marže
   const margin1x2 = rawHome + rawDraw + rawAway - 1;
   const marginOu = rawOver + rawUnder - 1;
 
@@ -112,65 +108,46 @@ export function analyze(input: OddsInput): AnalysisResult {
   const pOver = rawOver / (1 + marginOu);
   const pUnder = rawUnder / (1 + marginOu);
 
-  // Korak 2: procjena očekivanih golova
-  const mu = solveMu(pOver);
-  // Raspodjela ukupnog očekivanja prema snazi momčadi (remi se dijeli 50/50)
+  // Ciljane vjerojatnosti iz profesionalnih sidara
+  const p22Target = (1 / input.exact22) / (1 + margin1x2);
+  const pGgTarget = (1 / input.gg) / (1 + marginOu);
+
+  // Početna procjena
+  const muInit = solveMu(pOver);
   const strengthHome = pHome + pDraw / 2;
   const strengthAway = pAway + pDraw / 2;
   const total = strengthHome + strengthAway;
-  // Blaga kompresija da ekstremni favoriti ne dobiju nerealan udio
-  const shareHome = Math.pow(strengthHome / total, 0.85);
-  const shareAway = Math.pow(strengthAway / total, 0.85);
-  const norm = shareHome + shareAway;
+  
+  const lambdaHomeInit = (muInit * (strengthHome / total));
+  const lambdaAwayInit = (muInit * (strengthAway / total));
 
-  let lambdaHome = (mu * shareHome) / norm;
-  let lambdaAway = (mu * shareAway) / norm;
+  // Pokretanje naprednog solvera s dvostrukim sidrenjem i Dixon-Coles traženjem
+  const sol = solveLambdas({
+    p1: pHome,
+    pX: pDraw,
+    p2: pAway,
+    pUnder: pUnder,
+    p22: p22Target,
+    pGg: pGgTarget
+  });
 
-  // Korak 2b: SOLVER — ako je unesena kvota 2-2, ona povezuje sva tržišta.
-  let calibrated = false;
-  let raw22Exact: number | undefined;
-  let market22: number | undefined;
-  let poisson22: number | undefined;
-  let factor22: number | undefined;
-  let calibrated22: number | undefined;
-  let solverError: number | undefined;
+  const lambdaHome = sol.lambdaHome;
+  const lambdaAway = sol.lambdaAway;
+  const rho = sol.rho;
 
-  if (input.exact22 && isFinite(input.exact22) && input.exact22 > 1.01) {
-    raw22Exact = 1 / input.exact22;
-    market22 = raw22Exact / (1 + margin1x2);
-    poisson22 = poisson(lambdaHome, 2) * poisson(lambdaAway, 2);
-
-    try {
-      const sol = solveLambdas({
-        p1: pHome,
-        pX: pDraw,
-        p2: pAway,
-        pUnder,
-        p22: market22,
-      });
-      lambdaHome = sol.lambdaHome;
-      lambdaAway = sol.lambdaAway;
-      solverError = sol.error;
-      calibrated22 = poisson(lambdaHome, 2) * poisson(lambdaAway, 2);
-      factor22 = poisson22 > 0 ? market22 / poisson22 : undefined;
-      calibrated = true;
-    } catch (e) {
-      console.error("Solver error, falling back to basic distribution", e);
-    }
-  }
-
-  // Korak 3: Poissonova matrica 10x10
+  // Izgradnja matrice s Dixon-Coles korekcijom realnosti
   const matrix: number[][] = [];
   const list: ScoreProb[] = [];
   let coverage = 0;
-  
-  // Prosječna margina koju ponovno dodajemo izračunatim kvotama rezultata radi realnosti
-  const avgMargin = 1 + margin1x2; 
+  const avgMargin = 1 + margin1x2;
 
   for (let x = 0; x <= MAX_GOALS; x++) {
     const row: number[] = [];
     for (let y = 0; y <= MAX_GOALS; y++) {
-      const p = poisson(lambdaHome, x) * poisson(lambdaAway, y);
+      const pBase = poisson(lambdaHome, x) * poisson(lambdaAway, y);
+      const adj = getDixonColesAdj(x, y, lambdaHome, lambdaAway, rho);
+      const p = Math.max(0, pBase * adj);
+      
       row.push(p);
       list.push({ 
         home: x, 
@@ -202,18 +179,13 @@ export function analyze(input: OddsInput): AnalysisResult {
   return {
     margin1x2,
     marginOu,
-    rawHome,
-    rawDraw,
-    rawAway,
-    rawOver,
-    rawUnder,
     pHome,
     pDraw,
     pAway,
     pOver,
     pUnder,
-    mu: lambdaHome + lambdaAway, // Ukupni golovi
-    lambda: lambdaHome,          // Domaći golovi izloženi kao 'lambda' za UI karticu
+    mu: lambdaHome + lambdaAway,
+    lambda: lambdaHome,
     lambdaHome,
     lambdaAway,
     matrix,
@@ -224,13 +196,6 @@ export function analyze(input: OddsInput): AnalysisResult {
     pAwayWin,
     pBtts,
     coverage,
-    calibrated,
-    raw22Exact,
-    market22,
-    poisson22,
-    factor22,
-    calibrated22,
-    solverError,
     final: {
       score: bestResult.score || `${bestResult.home}-${bestResult.away}`,
       home: bestResult.home,
@@ -244,5 +209,5 @@ export function analyze(input: OddsInput): AnalysisResult {
   };
 }
 
-export const pct = (v: number, d = 2) => `${(v * 100).toFixed(d)} %`;
+export const pct = (v: number, d = 1) => `${(v * 100).toFixed(d)} %`;
 
