@@ -44,7 +44,7 @@ function Index() {
     away: "3.60",
     over: "1.85",
     under: "1.95",
-    exact22: "13.00", // Postavljena zadana vrijednost jer je polje sada obavezno
+    exact22: "13.00",
   });
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
@@ -198,9 +198,8 @@ function Index() {
           </section>
         )}
 
-        {/* NOVA I VELIKA KARTICA ZA PREDVIĐENI REZULTAT */}
         {!loading && result && result.best && (
-          <section className="mt-8 bg-card p-6 rounded-2xl shadow-xl border border-primary/20 max-w-xl mx-auto text-center animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <section className="mt-8 bg-card p-6 rounded-2xl shadow-xl border border-primary/20 max-w-xl mx-auto text-center">
             <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary bg-primary/10 px-3 py-1 rounded-full">
               <Target className="size-3.5" /> Analiza završena — Vrhunsko predviđanje
             </span>
@@ -209,12 +208,10 @@ function Index() {
               Predviđeni točan rezultat
             </h2>
             
-            {/* Veliki upečatljivi rezultat (npr. 2-1 ili 2-2) */}
             <div className="text-6xl font-black text-foreground my-4 tracking-tight">
               {result.best.score}
             </div>
 
-            {/* Izračunata kvota i postotak sigurnosti */}
             <div className="grid grid-cols-2 gap-4 my-6 p-4 bg-secondary/50 rounded-xl border border-border">
               <div>
                 <p className="text-xs text-muted-foreground uppercase font-semibold flex items-center justify-center gap-1">
@@ -224,3 +221,8 @@ function Index() {
                   @{result.best.odds ? result.best.odds.toFixed(2) : (100 / result.best.prob).toFixed(2)}
                 </p>
               </div>
+              <div>
+                <p className="text-xs text-muted-foreground uppercase font-semibold flex items-center justify-center gap-1">
+                  <Percent className="size-3" /> Sigurnost (Vjerojatnost)
+                </p>
+                <p className="text-2xl font-bold text-primary mt-1">
