@@ -140,6 +140,25 @@ function Index() {
             ))}
           </div>
 
+          <div className="mt-5 grid grid-cols-1 gap-2 sm:max-w-sm">
+            <Label htmlFor="exact22" className="text-xs text-muted-foreground">
+              Kvota na točan rezultat 2-2{" "}
+              <span className="text-muted-foreground/70">(neobavezno)</span>
+            </Label>
+            <Input
+              id="exact22"
+              inputMode="decimal"
+              placeholder="npr. 13.00"
+              value={values.exact22}
+              onChange={(e) => set("exact22", e.target.value)}
+              title="Ako je unesete, matrica se kalibrira prema tržišnoj vjerojatnosti rezultata 2-2"
+              className="h-12 bg-secondary/50 text-center text-lg font-semibold tabular-nums"
+            />
+            <p className="text-xs text-muted-foreground">
+              Unos ove kvote fino podešava cijelu matricu prema stvarnom tržištu.
+            </p>
+          </div>
+
           {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
 
           <Button
