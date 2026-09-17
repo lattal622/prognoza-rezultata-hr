@@ -1,3 +1,16 @@
+import { solveLambdas } from "./solver";
+
+export interface FinalPrediction {
+  score: string;
+  home: number;
+  away: number;
+  prob: number;
+  fairOdds: number;
+  marketOdds: number;
+  expectedHomeGoals: number;
+  expectedAwayGoals: number;
+}
+
 export interface OddsInput {
   home: number;
   draw: number;
@@ -198,6 +211,17 @@ export function analyze(input: OddsInput): AnalysisResult {
     poisson22,
     factor22,
     calibrated22,
+    solverError,
+    final: {
+      score: `${(list[0] as ScoreProb).home}-${(list[0] as ScoreProb).away}`,
+      home: (list[0] as ScoreProb).home,
+      away: (list[0] as ScoreProb).away,
+      prob: (list[0] as ScoreProb).prob,
+      fairOdds: 1 / (list[0] as ScoreProb).prob,
+      marketOdds: 1 / ((list[0] as ScoreProb).prob * (1 + margin1x2)),
+      expectedHomeGoals: lambdaHome,
+      expectedAwayGoals: lambdaAway,
+    },
   };
 }
 
