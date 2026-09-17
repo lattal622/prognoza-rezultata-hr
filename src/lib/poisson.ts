@@ -124,6 +124,69 @@ export function analyze(input: OddsInput): AnalysisResult {
     matrix.push(row);
   }
 
+  // Korak 3b: kalibracija matrice pomoću kvote na točan rezultat 2-2
+  let calibrated = false;
+  let raw22Exact: number | undefined;
+  let market22: number | undefined;
+  let poisson22: number | undefined;
+  let factor22: number | undefined;
+  let calibrated22: number | undefined;
+
+  if (input.exact22 && isFinite(input.exact22) && input.exact22 > 1.01) {
+    raw22Exact = 1 / input.exact22;
+    market22 = raw22Exact / (1 + margin1x2);
+    poisson22 = (matrix[2]?.[2] as number) ?? 0;
+
+    if (poisson22 > 0) {
+      factor22 = market22 / poisson22;
+
+      // Težina prilagodbe: najjača za 2-2, slabi s udaljenošću od tog rezultata,
+      // s dodatnim naglaskom na remije i rezultate s više golova.
+      const weight = (x: number, y: number) => {
+        const dist = Math.abs(x - 2) + Math.abs(y - 2);
+        let w = Math.exp(-dist / 2.2);
+        if (x === y) w = Math.min(1, w * 1.35);
+        if (x + y >= 4) w = Math.min(1, w * 1.15);
+        return w;
+      };
+
+      // Iterativno skaliranje uz normalizaciju dok P(2-2) ne dosegne tržišnu vrijednost
+      for (let iter = 0; iter < 60; iter++) {
+        const current = (matrix[2]?.[2] as number) ?? 0;
+        if (current <= 0) break;
+        const f = market22 / current;
+        if (Math.abs(f - 1) < 1e-9) break;
+        let sum = 0;
+        for (let x = 0; x <= MAX_GOALS; x++) {
+          const row = matrix[x] as number[];
+          for (let y = 0; y <= MAX_GOALS; y++) {
+            const v = (row[y] as number) * Math.pow(f, weight(x, y));
+            row[y] = v;
+            sum += v;
+          }
+        }
+        for (let x = 0; x <= MAX_GOALS; x++) {
+          const row = matrix[x] as number[];
+          for (let y = 0; y <= MAX_GOALS; y++) row[y] = (row[y] as number) / sum;
+        }
+      }
+
+      calibrated22 = (matrix[2]?.[2] as number) ?? 0;
+      calibrated = true;
+
+      // Ponovno gradimo listu i pokrivenost iz kalibrirane matrice
+      list.length = 0;
+      coverage = 0;
+      for (let x = 0; x <= MAX_GOALS; x++) {
+        for (let y = 0; y <= MAX_GOALS; y++) {
+          const p = (matrix[x]?.[y] as number) ?? 0;
+          list.push({ home: x, away: y, prob: p });
+          coverage += p;
+        }
+      }
+    }
+  }
+
   list.sort((a, b) => b.prob - a.prob);
 
   let pHomeWin = 0;
@@ -161,6 +224,12 @@ export function analyze(input: OddsInput): AnalysisResult {
     pAwayWin,
     pBtts,
     coverage,
+    calibrated,
+    raw22Exact,
+    market22,
+    poisson22,
+    factor22,
+    calibrated22,
   };
 }
 
