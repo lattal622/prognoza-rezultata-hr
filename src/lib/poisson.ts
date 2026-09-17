@@ -58,6 +58,8 @@ export interface AnalysisResult {
   poisson22?: number | undefined;
   factor22?: number | undefined;
   calibrated22?: number | undefined;
+  solverError?: number | undefined;
+  final: FinalPrediction;
 }
 
 
