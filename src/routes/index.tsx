@@ -52,6 +52,7 @@ function Index() {
     away: "3.60",
     over: "1.85",
     under: "1.95",
+    exact22: "",
   });
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
@@ -62,13 +63,23 @@ function Index() {
   const set = (k: keyof OddsInput, v: string) => setValues((p) => ({ ...p, [k]: v }));
 
   const onCalculate = () => {
-    const nums = FIELDS.map((f) => parseFloat(values[f.key].replace(",", ".")));
+    const nums = FIELDS.map((f) => parseFloat(String(values[f.key]).replace(",", ".")));
     if (nums.some((v) => !isFinite(v) || v <= 1.01)) {
       setError("Unesite ispravne tečajeve — svaka vrijednost mora biti veća od 1.01.");
       return;
     }
+    const raw22 = String(values.exact22 ?? "").trim();
+    let exact22: number | undefined = undefined;
+    if (raw22 !== "") {
+      const v22 = parseFloat(raw22.replace(",", "."));
+      if (!isFinite(v22) || v22 <= 1.01) {
+        setError("Kvota na točan rezultat 2-2 mora biti veća od 1.01 ili ostavljena prazna.");
+        return;
+      }
+      exact22 = v22;
+    }
     const [h, d, a, o, u] = nums as [number, number, number, number, number];
-    const odds: OddsInput = { home: h, draw: d, away: a, over: o, under: u };
+    const odds: OddsInput = { home: h, draw: d, away: a, over: o, under: u, ...(exact22 !== undefined ? { exact22 } : {}) };
     setError(null);
     setLoading(true);
     setResult(null);
@@ -127,6 +138,25 @@ function Index() {
                 />
               </div>
             ))}
+          </div>
+
+          <div className="mt-5 grid grid-cols-1 gap-2 sm:max-w-sm">
+            <Label htmlFor="exact22" className="text-xs text-muted-foreground">
+              Kvota na točan rezultat 2-2{" "}
+              <span className="text-muted-foreground/70">(neobavezno)</span>
+            </Label>
+            <Input
+              id="exact22"
+              inputMode="decimal"
+              placeholder="npr. 13.00"
+              value={values.exact22}
+              onChange={(e) => set("exact22", e.target.value)}
+              title="Ako je unesete, matrica se kalibrira prema tržišnoj vjerojatnosti rezultata 2-2"
+              className="h-12 bg-secondary/50 text-center text-lg font-semibold tabular-nums"
+            />
+            <p className="text-xs text-muted-foreground">
+              Unos ove kvote fino podešava cijelu matricu prema stvarnom tržištu.
+            </p>
           </div>
 
           {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
@@ -226,6 +256,12 @@ function Index() {
                 </div>
               ))}
             </section>
+
+            {result.calibrated && (
+              <p className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                <Activity className="size-3.5" aria-hidden /> Sustav kalibriran pomoću kvote 2-2
+              </p>
+            )}
 
             <section className="surface-panel animate-rise rounded-2xl p-5 sm:p-7">
               <h2 className="flex items-center gap-2 text-sm font-medium tracking-wide text-muted-foreground uppercase">
