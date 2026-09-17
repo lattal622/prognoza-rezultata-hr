@@ -5,7 +5,6 @@ import { Download, Activity, Calculator, Target, Percent, Sigma, AlertCircle } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Explanation } from "@/components/statx/explanation";
 import { usePwaInstall } from "@/hooks/use-pwa-install";
 import { analyze, pct, type AnalysisResult, type OddsInput } from "@/lib/poisson";
 
@@ -17,12 +16,6 @@ export const Route = createFileRoute("/")({
         name: "description",
         content:
           "Profesionalni analitički alat: uklanjanje marže, xG motor i Poissonova matrica 10×10 za predviđanje točnog nogometnog rezultata.",
-      },
-      { property: "og:title", content: "StatX ScoreMaster PRO" },
-      {
-        property: "og:description",
-        content:
-          "Izračunaj najizgledniji točan rezultat iz kladioničarskih tečajeva uz potpuno matematičko objašnjenje.",
       },
     ],
   }),
@@ -48,7 +41,6 @@ function Index() {
   });
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
-  const [usedOdds, setUsedOdds] = useState<OddsInput | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { canInstall, installed, install } = usePwaInstall();
 
@@ -63,7 +55,7 @@ function Index() {
 
     const raw22 = String(values.exact22 ?? "").trim();
     if (raw22 === "") {
-      setError("Polje 'Kvota na točan rezultat 2-2' je obavezno za kalibraciju vrhunskog pravila.");
+      setError("Polje 'Kvota na točan rezultat 2-2' je obavezno za kalibraciju.");
       return;
     }
 
@@ -83,68 +75,55 @@ function Index() {
     window.setTimeout(() => {
       try {
         const analysis = analyze(odds);
-        if (!analysis || !analysis.best) {
-          throw new Error("Model nije uspio generirati rezultat.");
-        }
         setResult(analysis);
-        setUsedOdds(odds);
       } catch (err) {
         setError("Došlo je do greške prilikom izračuna. Provjerite jesu li unesene kvote realne.");
-      } finally {
+      } {
         setLoading(false);
       }
-    }, 1500);
+    }, 1200);
   };
 
   return (
-    <main className="min-h-screen bg-background bg-hero">
-      <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 lg:py-14">
-        <header className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+    <main className="min-h-screen bg-background p-4 sm:p-6">
+      <div className="mx-auto w-full max-w-4xl space-y-6">
+        <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1 text-xs font-medium tracking-wide text-primary uppercase">
-              <Activity className="size-3.5" aria-hidden /> Poissonova analitika u stvarnom vremenu
+            <p className="inline-flex items-center gap-2 rounded-full border bg-card/60 px-3 py-1 text-xs font-medium text-primary uppercase">
+              <Activity className="size-3.5" /> Poissonova analitika u stvarnom vremenu
             </p>
-            <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-5xl">
-              StatX <span className="text-gradient">ScoreMaster PRO</span>
+            <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-4xl text-foreground">
+              StatX ScoreMaster PRO
             </h1>
-            <p className="mt-3 max-w-xl text-sm text-muted-foreground sm:text-base">
-              Profesionalni alat za predviđanje točnog rezultata. Unesite tečajeve, a motor uklanja
-              maržu, izvodi očekivane golove i računa točan ishod.
-            </p>
           </div>
           {canInstall && (
             <Button variant="outline" onClick={install} className="shrink-0">
-              <Download className="size-4" aria-hidden /> Instaliraj aplikaciju
+              <Download className="size-4" /> Instaliraj aplikaciju
             </Button>
-          )}
-          {installed && (
-            <span className="shrink-0 text-xs text-muted-foreground">Aplikacija je instalirana</span>
           )}
         </header>
 
-        <section className="surface-panel mt-10 rounded-2xl p-5 sm:p-7">
-          <h2 className="flex items-center gap-2 text-lg font-semibold">
-            <Calculator className="size-5 text-primary" aria-hidden /> Unos tečajeva
+        <section className="bg-card p-5 sm:p-7 rounded-2xl border border-border shadow-sm">
+          <h2 className="flex items-center gap-2 text-lg font-semibold mb-4 text-foreground">
+            <Calculator className="size-5 text-primary" /> Unos tečajeva
           </h2>
-          <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+          
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
             {FIELDS.map((f) => (
               <div key={f.key} className="space-y-2">
-                <Label htmlFor={f.key} className="text-xs text-muted-foreground">
-                  {f.label}
-                </Label>
+                <Label htmlFor={f.key} className="text-xs text-muted-foreground">{f.label}</Label>
                 <Input
                   id={f.key}
                   inputMode="decimal"
                   value={values[f.key]}
                   onChange={(e) => set(f.key, e.target.value)}
-                  title={f.hint}
-                  className="h-12 bg-secondary/50 text-center text-lg font-semibold tabular-nums"
+                  className="h-12 text-center text-lg font-semibold"
                 />
               </div>
             ))}
           </div>
 
-          <div className="mt-5 grid grid-cols-1 gap-2 sm:max-w-sm">
+          <div className="mt-6 max-w-xs space-y-2">
             <Label htmlFor="exact22" className="text-xs font-semibold text-primary">
               Kvota na točan rezultat 2-2 <span className="text-destructive">*</span>
             </Label>
@@ -154,12 +133,8 @@ function Index() {
               placeholder="npr. 13.00"
               value={values.exact22}
               onChange={(e) => set("exact22", e.target.value)}
-              title="Obavezna kvota za kalibraciju i povezivanje svih tržišta"
-              className="h-12 bg-secondary/50 border-primary/40 text-center text-lg font-semibold tabular-nums focus:border-primary"
+              className="h-12 text-center text-lg font-semibold border-primary/40 focus:border-primary"
             />
-            <p className="text-xs text-muted-foreground">
-              Ovo polje je obavezno. Unos ove kvote fiksira matematičko sidro za točan izračun.
-            </p>
           </div>
 
           {error && (
@@ -172,57 +147,57 @@ function Index() {
           <Button
             onClick={onCalculate}
             disabled={loading}
-            className="mt-6 h-14 w-full text-base font-bold tracking-wide"
-            style={{ backgroundImage: "var(--gradient-primary)", boxShadow: "var(--shadow-elegant)" }}
+            className="mt-6 h-12 w-full text-base font-bold tracking-wide bg-primary text-primary-foreground shadow"
           >
             {loading ? "ANALIZIRAM..." : "IZRAČUNAJ"}
           </Button>
         </section>
 
         {loading && (
-          <section className="surface-panel mt-6 flex flex-col items-center gap-5 rounded-2xl p-12">
-            <div className="relative flex size-16 items-center justify-center">
-              <span className="absolute inset-0 animate-ring rounded-full border-2 border-primary" />
-              <span
-                className="absolute inset-0 animate-ring rounded-full border-2 border-primary"
-                style={{ animationDelay: "0.5s" }}
-              />
-              <Sigma className="size-7 text-primary" aria-hidden />
-            </div>
-            <div className="text-center">
-              <p className="font-semibold">Statistička analiza u tijeku…</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Uklanjam maržu · kalibriram sidro 2-2 · računam točan rezultat
-              </p>
+          <section className="bg-card flex flex-col items-center gap-4 rounded-2xl p-10 text-center border">
+            <Sigma className="size-8 text-primary animate-spin" />
+            <div>
+              <p className="font-semibold text-foreground">Statistička analiza u tijeku…</p>
+              <p className="text-xs text-muted-foreground">Uklanjam maržu · računam očekivane golove</p>
             </div>
           </section>
         )}
 
         {!loading && result && result.best && (
-          <section className="mt-8 bg-card p-6 rounded-2xl shadow-xl border border-primary/20 max-w-xl mx-auto text-center">
-            <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary bg-primary/10 px-3 py-1 rounded-full">
-              <Target className="size-3.5" /> Analiza završena — Vrhunsko predviđanje
+          <section className="bg-card p-6 rounded-2xl shadow-md border border-primary/20 text-center space-y-4">
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-primary bg-primary/10 px-3 py-1 rounded-full uppercase tracking-wider">
+              <Target className="size-3.5" /> Predviđanje generirano
             </span>
             
-            <h2 className="text-sm font-bold text-muted-foreground mt-4 uppercase tracking-widest">
-              Predviđeni točan rezultat
-            </h2>
-            
-            <div className="text-6xl font-black text-foreground my-4 tracking-tight">
-              {result.best.score}
+            <div>
+              <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Predviđeni točan rezultat</h2>
+              <div className="text-6xl font-black text-foreground my-2 tracking-tight">{result.best.score}</div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 my-6 p-4 bg-secondary/50 rounded-xl border border-border">
+            <div className="grid grid-cols-2 gap-4 max-w-md mx-auto p-4 bg-secondary/40 rounded-xl border">
               <div>
-                <p className="text-xs text-muted-foreground uppercase font-semibold flex items-center justify-center gap-1">
-                  <Calculator className="size-3" /> Izračunata Kvota
-                </p>
+                <p className="text-xs text-muted-foreground uppercase font-semibold">Izračunata Kvota</p>
                 <p className="text-2xl font-bold text-emerald-500 mt-1">
                   @{result.best.odds ? result.best.odds.toFixed(2) : (100 / result.best.prob).toFixed(2)}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground uppercase font-semibold flex items-center justify-center gap-1">
-                  <Percent className="size-3" /> Sigurnost (Vjerojatnost)
-                </p>
-                <p className="text-2xl font-bold text-primary mt-1">
+                <p className="text-xs text-muted-foreground uppercase font-semibold">Sigurnost</p>
+                <p className="text-2xl font-bold text-primary mt-1">{pct(result.best.prob)}</p>
+              </div>
+            </div>
+
+            <div className="border-t border-border pt-4 text-left max-w-md mx-auto space-y-2">
+              <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Očekivana snaga napada (xG):</h3>
+              <div className="grid grid-cols-2 gap-4 text-sm bg-secondary/20 p-3 rounded-lg">
+                <div>Domaćin: <span className="font-bold text-foreground">{result.lambda?.toFixed(2) || "0.00"} golova</span></div>
+                <div>Gost: <span className="font-bold text-foreground">{result.lambdaAway?.toFixed(2) || "0.00"} golova</span></div>
+              </div>
+            </div>
+          </section>
+        )}
+      </div>
+    </main>
+  );
+}
+
