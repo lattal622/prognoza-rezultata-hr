@@ -69,7 +69,7 @@ function Index() {
       return;
     }
     const raw22 = String(values.exact22 ?? "").trim();
-    let exact22: number | undefined;
+    let exact22: number | undefined = undefined;
     if (raw22 !== "") {
       const v22 = parseFloat(raw22.replace(",", "."));
       if (!isFinite(v22) || v22 <= 1.01) {
@@ -79,7 +79,7 @@ function Index() {
       exact22 = v22;
     }
     const [h, d, a, o, u] = nums as [number, number, number, number, number];
-    const odds: OddsInput = { home: h, draw: d, away: a, over: o, under: u, exact22 };
+    const odds: OddsInput = { home: h, draw: d, away: a, over: o, under: u, ...(exact22 !== undefined ? { exact22 } : {}) };
     setError(null);
     setLoading(true);
     setResult(null);
