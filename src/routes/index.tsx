@@ -294,6 +294,89 @@ function Index() {
               ))}
             </section>
 
+            <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+              <div className="surface-panel animate-rise rounded-2xl p-5 sm:p-7 lg:col-span-2">
+                <h2 className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
+                  Prognoza utakmice
+                </h2>
+                <table className="mt-4 w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-muted-foreground">
+                      <th className="pb-2 font-medium">Tip</th>
+                      <th className="pb-2 text-right font-medium">Kvota</th>
+                      <th className="pb-2 text-right font-medium">Vjerojatnost</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      { t: "Domaćin (1)", o: usedOdds.home, p: result.pHomeWin },
+                      { t: "Neriješeno (X)", o: usedOdds.draw, p: result.pDrawResult },
+                      { t: "Gost (2)", o: usedOdds.away, p: result.pAwayWin },
+                      { t: "Više od 2.5", o: usedOdds.over, p: result.pOverModel },
+                      { t: "Manje od 2.5", o: usedOdds.under, p: result.pUnderModel },
+                      ...(usedOdds.exact22
+                        ? [
+                            {
+                              t: "Točan rezultat 2-2",
+                              o: usedOdds.exact22,
+                              p: result.p22Model,
+                            },
+                          ]
+                        : []),
+                      { t: "Oba daju gol", o: 1 / result.pBtts, p: result.pBtts },
+                    ].map((row) => (
+                      <tr key={row.t} className="border-t border-border/70">
+                        <td className="py-2.5 font-medium">{row.t}</td>
+                        <td className="py-2.5 text-right text-muted-foreground tabular-nums">
+                          {row.o.toFixed(2)}
+                        </td>
+                        <td className="py-2.5 text-right text-primary tabular-nums">
+                          {pct(row.p, 1)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="surface-panel animate-rise rounded-2xl p-5 sm:p-7">
+                <h2 className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
+                  Najbolji tipovi
+                </h2>
+                <ul className="mt-4 space-y-3 text-sm">
+                  {[
+                    {
+                      l: "1X2",
+                      v: `${result.final.outcomeLabel} (${result.final.outcome}) — ${pct(result.final.outcomeProb, 1)}`,
+                    },
+                    {
+                      l: "Golovi",
+                      v:
+                        result.pOverModel >= result.pUnderModel
+                          ? `Više od 2.5 — ${pct(result.pOverModel, 1)}`
+                          : `Manje od 2.5 — ${pct(result.pUnderModel, 1)}`,
+                    },
+                    {
+                      l: "Oba daju gol",
+                      v: `${result.pBtts >= 0.5 ? "Da" : "Ne"} — ${pct(result.pBtts >= 0.5 ? result.pBtts : 1 - result.pBtts, 1)}`,
+                    },
+                    {
+                      l: "Točan rezultat",
+                      v: `${result.final.home} - ${result.final.away} — ${pct(result.final.confidence, 1)}`,
+                    },
+                  ].map((tip) => (
+                    <li key={tip.l} className="rounded-lg bg-secondary/50 p-3">
+                      <p className="text-xs text-muted-foreground">{tip.l}</p>
+                      <p className="mt-1 font-semibold">{tip.v}</p>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-4 text-xs text-muted-foreground">
+                  Tipovi su izvedeni iz iste kalibrirane matrice, a ne iz pojedinačnih tečajeva.
+                </p>
+              </div>
+            </section>
+
             {result.calibrated && (
               <p className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
                 <Activity className="size-3.5" aria-hidden /> Sustav kalibriran pomoću kvote 2-2
