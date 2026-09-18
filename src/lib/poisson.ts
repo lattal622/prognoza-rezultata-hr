@@ -55,6 +55,12 @@ export interface AnalysisResult {
   pDrawResult: number;
   pAwayWin: number;
   pBtts: number;
+  /** Vjerojatnosti izvedene iz konačne matrice */
+  pOverModel: number;
+  pUnderModel: number;
+  p22Model: number;
+  /** Najizgledniji rezultat unutar najizglednijeg ishoda (1/X/2) */
+  topByOutcome: { "1": ScoreProb; X: ScoreProb; "2": ScoreProb };
   coverage: number;
   /** Kalibracija pomoću kvote 2-2 */
   calibrated: boolean;
