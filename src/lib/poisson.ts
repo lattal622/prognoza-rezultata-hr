@@ -9,6 +9,11 @@ export interface FinalPrediction {
   marketOdds: number;
   expectedHomeGoals: number;
   expectedAwayGoals: number;
+  /** Najizgledniji ishod utakmice: 1, X ili 2 */
+  outcome: "1" | "X" | "2";
+  outcomeLabel: string;
+  outcomeProb: number;
+  confidence: number;
 }
 
 export interface OddsInput {
