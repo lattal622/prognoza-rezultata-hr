@@ -192,6 +192,42 @@ function Index() {
 
         {result && usedOdds && !loading && (
           <div className="mt-6 space-y-6">
+            <section className="surface-panel animate-rise rounded-2xl p-6 sm:p-8">
+              <h2 className="flex items-center gap-2 text-sm font-medium tracking-wide text-muted-foreground uppercase">
+                <Target className="size-4 text-primary" aria-hidden /> Predviđeni rezultat utakmice
+              </h2>
+              <div className="mt-6 grid grid-cols-1 items-center gap-6 lg:grid-cols-3">
+                <div className="text-center">
+                  <p className="text-7xl font-black tracking-tighter tabular-nums sm:text-8xl">
+                    <span className="text-gradient">
+                      {result.final.home} - {result.final.away}
+                    </span>
+                  </p>
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    {result.final.outcomeLabel} ({result.final.outcome}) ·{" "}
+                    {pct(result.final.outcomeProb, 1)}
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-3 lg:col-span-2">
+                  {[
+                    { l: "Izračunata kvota", v: result.final.marketOdds.toFixed(2) },
+                    { l: "Sigurnost", v: pct(result.final.confidence, 1) },
+                    { l: "Očekivani golovi domaćin", v: result.final.expectedHomeGoals.toFixed(2) },
+                    { l: "Očekivani golovi gost", v: result.final.expectedAwayGoals.toFixed(2) },
+                  ].map((s) => (
+                    <div key={s.l} className="rounded-xl bg-secondary/50 p-4">
+                      <p className="text-xs text-muted-foreground">{s.l}</p>
+                      <p className="mt-2 text-2xl font-bold text-primary tabular-nums">{s.v}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <p className="mt-4 text-xs text-muted-foreground">
+                Rezultat je najizgledniji točan rezultat unutar najizglednijeg ishoda utakmice, uz
+                fer tečaj {result.final.fairOdds.toFixed(2)}.
+              </p>
+            </section>
+
             <section className="grid grid-cols-1 gap-6 lg:grid-cols-5">
               <div className="surface-panel animate-rise rounded-2xl p-7 lg:col-span-2">
                 <h2 className="flex items-center gap-2 text-sm font-medium tracking-wide text-muted-foreground uppercase">
@@ -209,6 +245,7 @@ function Index() {
                   vjerojatnost pogotka točnog rezultata
                 </p>
               </div>
+
 
               <div className="surface-panel animate-rise rounded-2xl p-6 lg:col-span-3">
                 <h2 className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
