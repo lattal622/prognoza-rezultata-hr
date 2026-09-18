@@ -9,6 +9,11 @@ export interface FinalPrediction {
   marketOdds: number;
   expectedHomeGoals: number;
   expectedAwayGoals: number;
+  /** Najizgledniji ishod utakmice: 1, X ili 2 */
+  outcome: "1" | "X" | "2";
+  outcomeLabel: string;
+  outcomeProb: number;
+  confidence: number;
 }
 
 export interface OddsInput {
@@ -50,6 +55,12 @@ export interface AnalysisResult {
   pDrawResult: number;
   pAwayWin: number;
   pBtts: number;
+  /** Vjerojatnosti izvedene iz konačne matrice */
+  pOverModel: number;
+  pUnderModel: number;
+  p22Model: number;
+  /** Najizgledniji rezultat unutar najizglednijeg ishoda (1/X/2) */
+  topByOutcome: { "1": ScoreProb; X: ScoreProb; "2": ScoreProb };
   coverage: number;
   /** Kalibracija pomoću kvote 2-2 */
   calibrated: boolean;
@@ -176,12 +187,45 @@ export function analyze(input: OddsInput): AnalysisResult {
   let pDrawResult = 0;
   let pAwayWin = 0;
   let pBtts = 0;
+  let pOverModel = 0;
+  let pUnderModel = 0;
+  let bestHomeWin: ScoreProb | undefined;
+  let bestDraw: ScoreProb | undefined;
+  let bestAwayWin: ScoreProb | undefined;
   for (const s of list) {
-    if (s.home > s.away) pHomeWin += s.prob;
-    else if (s.home === s.away) pDrawResult += s.prob;
-    else pAwayWin += s.prob;
+    if (s.home > s.away) {
+      pHomeWin += s.prob;
+      if (!bestHomeWin) bestHomeWin = s;
+    } else if (s.home === s.away) {
+      pDrawResult += s.prob;
+      if (!bestDraw) bestDraw = s;
+    } else {
+      pAwayWin += s.prob;
+      if (!bestAwayWin) bestAwayWin = s;
+    }
     if (s.home > 0 && s.away > 0) pBtts += s.prob;
+    if (s.home + s.away > 2.5) pOverModel += s.prob;
+    else pUnderModel += s.prob;
   }
+
+  const p22Model = (matrix[2]?.[2] as number) ?? 0;
+
+  const topByOutcome = {
+    "1": bestHomeWin as ScoreProb,
+    X: bestDraw as ScoreProb,
+    "2": bestAwayWin as ScoreProb,
+  };
+
+  // Konačni prijedlog: najizgledniji rezultat UNUTAR najizglednijeg ishoda (1/X/2).
+  // Time se izbjegava da model uvijek vrati remi kada tržište jasno favorizira jednu stranu.
+  const outcomes: { key: "1" | "X" | "2"; label: string; p: number; score: ScoreProb }[] = [
+    { key: "1", label: "Pobjeda domaćina", p: pHomeWin, score: topByOutcome["1"] },
+    { key: "X", label: "Neriješeno", p: pDrawResult, score: topByOutcome.X },
+    { key: "2", label: "Pobjeda gosta", p: pAwayWin, score: topByOutcome["2"] },
+  ];
+  outcomes.sort((a, b) => b.p - a.p);
+  const win = outcomes[0] as (typeof outcomes)[number];
+  const fs = win.score;
 
   return {
     margin1x2,
@@ -206,6 +250,10 @@ export function analyze(input: OddsInput): AnalysisResult {
     pDrawResult,
     pAwayWin,
     pBtts,
+    pOverModel,
+    pUnderModel,
+    p22Model,
+    topByOutcome,
     coverage,
     calibrated,
     raw22Exact,
@@ -215,14 +263,18 @@ export function analyze(input: OddsInput): AnalysisResult {
     calibrated22,
     solverError,
     final: {
-      score: `${(list[0] as ScoreProb).home}-${(list[0] as ScoreProb).away}`,
-      home: (list[0] as ScoreProb).home,
-      away: (list[0] as ScoreProb).away,
-      prob: (list[0] as ScoreProb).prob,
-      fairOdds: 1 / (list[0] as ScoreProb).prob,
-      marketOdds: 1 / ((list[0] as ScoreProb).prob * (1 + margin1x2)),
+      score: `${fs.home}-${fs.away}`,
+      home: fs.home,
+      away: fs.away,
+      prob: fs.prob,
+      fairOdds: 1 / fs.prob,
+      marketOdds: 1 / (fs.prob * (1 + margin1x2)),
       expectedHomeGoals: lambdaHome,
       expectedAwayGoals: lambdaAway,
+      outcome: win.key,
+      outcomeLabel: win.label,
+      outcomeProb: win.p,
+      confidence: fs.prob,
     },
   };
 }

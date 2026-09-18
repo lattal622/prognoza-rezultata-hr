@@ -192,6 +192,42 @@ function Index() {
 
         {result && usedOdds && !loading && (
           <div className="mt-6 space-y-6">
+            <section className="surface-panel animate-rise rounded-2xl p-6 sm:p-8">
+              <h2 className="flex items-center gap-2 text-sm font-medium tracking-wide text-muted-foreground uppercase">
+                <Target className="size-4 text-primary" aria-hidden /> Predviđeni rezultat utakmice
+              </h2>
+              <div className="mt-6 grid grid-cols-1 items-center gap-6 lg:grid-cols-3">
+                <div className="text-center">
+                  <p className="text-7xl font-black tracking-tighter tabular-nums sm:text-8xl">
+                    <span className="text-gradient">
+                      {result.final.home} - {result.final.away}
+                    </span>
+                  </p>
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    {result.final.outcomeLabel} ({result.final.outcome}) ·{" "}
+                    {pct(result.final.outcomeProb, 1)}
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-3 lg:col-span-2">
+                  {[
+                    { l: "Izračunata kvota", v: result.final.marketOdds.toFixed(2) },
+                    { l: "Sigurnost", v: pct(result.final.confidence, 1) },
+                    { l: "Očekivani golovi domaćin", v: result.final.expectedHomeGoals.toFixed(2) },
+                    { l: "Očekivani golovi gost", v: result.final.expectedAwayGoals.toFixed(2) },
+                  ].map((s) => (
+                    <div key={s.l} className="rounded-xl bg-secondary/50 p-4">
+                      <p className="text-xs text-muted-foreground">{s.l}</p>
+                      <p className="mt-2 text-2xl font-bold text-primary tabular-nums">{s.v}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <p className="mt-4 text-xs text-muted-foreground">
+                Rezultat je najizgledniji točan rezultat unutar najizglednijeg ishoda utakmice, uz
+                fer tečaj {result.final.fairOdds.toFixed(2)}.
+              </p>
+            </section>
+
             <section className="grid grid-cols-1 gap-6 lg:grid-cols-5">
               <div className="surface-panel animate-rise rounded-2xl p-7 lg:col-span-2">
                 <h2 className="flex items-center gap-2 text-sm font-medium tracking-wide text-muted-foreground uppercase">
@@ -209,6 +245,7 @@ function Index() {
                   vjerojatnost pogotka točnog rezultata
                 </p>
               </div>
+
 
               <div className="surface-panel animate-rise rounded-2xl p-6 lg:col-span-3">
                 <h2 className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
@@ -255,6 +292,89 @@ function Index() {
                   <p className="mt-2 text-2xl font-bold text-primary tabular-nums">{s.v}</p>
                 </div>
               ))}
+            </section>
+
+            <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+              <div className="surface-panel animate-rise rounded-2xl p-5 sm:p-7 lg:col-span-2">
+                <h2 className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
+                  Prognoza utakmice
+                </h2>
+                <table className="mt-4 w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-muted-foreground">
+                      <th className="pb-2 font-medium">Tip</th>
+                      <th className="pb-2 text-right font-medium">Kvota</th>
+                      <th className="pb-2 text-right font-medium">Vjerojatnost</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      { t: "Domaćin (1)", o: usedOdds.home, p: result.pHomeWin },
+                      { t: "Neriješeno (X)", o: usedOdds.draw, p: result.pDrawResult },
+                      { t: "Gost (2)", o: usedOdds.away, p: result.pAwayWin },
+                      { t: "Više od 2.5", o: usedOdds.over, p: result.pOverModel },
+                      { t: "Manje od 2.5", o: usedOdds.under, p: result.pUnderModel },
+                      ...(usedOdds.exact22
+                        ? [
+                            {
+                              t: "Točan rezultat 2-2",
+                              o: usedOdds.exact22,
+                              p: result.p22Model,
+                            },
+                          ]
+                        : []),
+                      { t: "Oba daju gol", o: 1 / result.pBtts, p: result.pBtts },
+                    ].map((row) => (
+                      <tr key={row.t} className="border-t border-border/70">
+                        <td className="py-2.5 font-medium">{row.t}</td>
+                        <td className="py-2.5 text-right text-muted-foreground tabular-nums">
+                          {row.o.toFixed(2)}
+                        </td>
+                        <td className="py-2.5 text-right text-primary tabular-nums">
+                          {pct(row.p, 1)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="surface-panel animate-rise rounded-2xl p-5 sm:p-7">
+                <h2 className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
+                  Najbolji tipovi
+                </h2>
+                <ul className="mt-4 space-y-3 text-sm">
+                  {[
+                    {
+                      l: "1X2",
+                      v: `${result.final.outcomeLabel} (${result.final.outcome}) — ${pct(result.final.outcomeProb, 1)}`,
+                    },
+                    {
+                      l: "Golovi",
+                      v:
+                        result.pOverModel >= result.pUnderModel
+                          ? `Više od 2.5 — ${pct(result.pOverModel, 1)}`
+                          : `Manje od 2.5 — ${pct(result.pUnderModel, 1)}`,
+                    },
+                    {
+                      l: "Oba daju gol",
+                      v: `${result.pBtts >= 0.5 ? "Da" : "Ne"} — ${pct(result.pBtts >= 0.5 ? result.pBtts : 1 - result.pBtts, 1)}`,
+                    },
+                    {
+                      l: "Točan rezultat",
+                      v: `${result.final.home} - ${result.final.away} — ${pct(result.final.confidence, 1)}`,
+                    },
+                  ].map((tip) => (
+                    <li key={tip.l} className="rounded-lg bg-secondary/50 p-3">
+                      <p className="text-xs text-muted-foreground">{tip.l}</p>
+                      <p className="mt-1 font-semibold">{tip.v}</p>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-4 text-xs text-muted-foreground">
+                  Tipovi su izvedeni iz iste kalibrirane matrice, a ne iz pojedinačnih tečajeva.
+                </p>
+              </div>
             </section>
 
             {result.calibrated && (
