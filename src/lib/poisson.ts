@@ -265,8 +265,8 @@ export function analyze(input: OddsInput): AnalysisResult {
   const scoreCandidate = (s: ScoreProb) => {
     let pts = s.prob / leader.prob; // osnovna težina iz matrice
     if (outcomeOf(s) === win.key) pts += 0.35;
-    if (s.home + s.away > 2.5 === goalsOver) pts += 0.18;
-    if (s.home > 0 && s.away > 0 === bttsYes) pts += 0.08;
+    if ((s.home + s.away > 2.5) === goalsOver) pts += 0.18;
+    if ((s.home > 0 && s.away > 0) === bttsYes) pts += 0.08;
     return pts;
   };
   let fs = leader;
@@ -338,6 +338,9 @@ export function analyze(input: OddsInput): AnalysisResult {
     p22Model,
     topByOutcome,
     coverage,
+    rho,
+    marketFit,
+    warnings,
     calibrated,
     raw22Exact,
     market22,
@@ -354,10 +357,14 @@ export function analyze(input: OddsInput): AnalysisResult {
       marketOdds: 1 / (fs.prob * (1 + margin1x2)),
       expectedHomeGoals: lambdaHome,
       expectedAwayGoals: lambdaAway,
-      outcome: win.key,
-      outcomeLabel: win.label,
-      outcomeProb: win.p,
+      outcome: outcomeOf(fs),
+      outcomeLabel:
+        outcomeOf(fs) === "1" ? "Pobjeda domaćina" : outcomeOf(fs) === "X" ? "Neriješeno" : "Pobjeda gosta",
+      outcomeProb: outcomeOf(fs) === "1" ? pHomeWin : outcomeOf(fs) === "X" ? pDrawResult : pAwayWin,
       confidence: fs.prob,
+      secondScore: `${second.home}-${second.away}`,
+      secondProb: second.prob,
+      reason,
     },
   };
 }
