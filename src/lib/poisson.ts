@@ -1,4 +1,4 @@
-import { solveLambdas } from "./solver";
+import { solveLambdas, tau } from "./solver";
 
 export interface FinalPrediction {
   score: string;
