@@ -14,6 +14,11 @@ export interface FinalPrediction {
   outcomeLabel: string;
   outcomeProb: number;
   confidence: number;
+  /** Drugi najvjerojatniji rezultat */
+  secondScore: string;
+  secondProb: number;
+  /** Kratko obrazloženje zašto je odabran baš taj rezultat */
+  reason: string;
 }
 
 export interface OddsInput {
@@ -62,6 +67,12 @@ export interface AnalysisResult {
   /** Najizgledniji rezultat unutar najizglednijeg ishoda (1/X/2) */
   topByOutcome: { "1": ScoreProb; X: ScoreProb; "2": ScoreProb };
   coverage: number;
+  /** Dixon-Coles korekcija niskih rezultata */
+  rho: number;
+  /** Sukladnost modela s tržišnim vjerojatnostima (1 = savršeno) */
+  marketFit: number;
+  /** Upozorenja o neuobičajenim kvotama (kutija 7 i 9 iz metodologije) */
+  warnings: string[];
   /** Kalibracija pomoću kvote 2-2 */
   calibrated: boolean;
   raw22Exact?: number | undefined;
