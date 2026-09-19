@@ -222,11 +222,46 @@ function Index() {
                   ))}
                 </div>
               </div>
-              <p className="mt-4 text-xs text-muted-foreground">
-                Rezultat je najizgledniji točan rezultat unutar najizglednijeg ishoda utakmice, uz
-                fer tečaj {result.final.fairOdds.toFixed(2)}.
-              </p>
+              <div className="mt-5 flex flex-wrap items-center gap-2 text-xs">
+                <span className="rounded-full border border-border bg-secondary/50 px-3 py-1 text-muted-foreground">
+                  Drugi najvjerojatniji:{" "}
+                  <span className="font-semibold text-foreground tabular-nums">
+                    {result.final.secondScore}
+                  </span>{" "}
+                  ({pct(result.final.secondProb, 1)})
+                </span>
+                <span className="rounded-full border border-border bg-secondary/50 px-3 py-1 text-muted-foreground">
+                  Fer tečaj{" "}
+                  <span className="font-semibold text-foreground tabular-nums">
+                    {result.final.fairOdds.toFixed(2)}
+                  </span>
+                </span>
+                <span className="rounded-full border border-primary/40 bg-primary/10 px-3 py-1 font-medium text-primary">
+                  Sukladnost s tržištem {pct(result.marketFit, 0)}
+                </span>
+              </div>
+              <p className="mt-3 text-xs text-muted-foreground">{result.final.reason}</p>
             </section>
+
+            {result.warnings.length > 0 && (
+              <section className="surface-panel animate-rise rounded-2xl border border-amber-500/30 p-5 sm:p-7">
+                <h2 className="text-sm font-medium tracking-wide text-amber-400 uppercase">
+                  Dodatne provjere i filtri
+                </h2>
+                <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+                  {result.warnings.map((w) => (
+                    <li key={w} className="flex gap-2">
+                      <span className="text-amber-400">•</span>
+                      <span>{w}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Kod neuobičajenih kvota smanjite težinu prognoze i provjerite formu, ozljede i
+                  međusobne susrete.
+                </p>
+              </section>
+            )}
 
             <section className="grid grid-cols-1 gap-6 lg:grid-cols-5">
               <div className="surface-panel animate-rise rounded-2xl p-7 lg:col-span-2">
