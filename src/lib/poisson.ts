@@ -243,8 +243,6 @@ export function analyze(input: OddsInput): AnalysisResult {
     "2": bestAwayWin as ScoreProb,
   };
 
-  // Konačni prijedlog: najizgledniji rezultat UNUTAR najizglednijeg ishoda (1/X/2).
-  // Time se izbjegava da model uvijek vrati remi kada tržište jasno favorizira jednu stranu.
   const outcomes: { key: "1" | "X" | "2"; label: string; p: number; score: ScoreProb }[] = [
     { key: "1", label: "Pobjeda domaćina", p: pHomeWin, score: topByOutcome["1"] },
     { key: "X", label: "Neriješeno", p: pDrawResult, score: topByOutcome.X },
@@ -252,7 +250,65 @@ export function analyze(input: OddsInput): AnalysisResult {
   ];
   outcomes.sort((a, b) => b.p - a.p);
   const win = outcomes[0] as (typeof outcomes)[number];
-  const fs = win.score;
+
+  // Konačni prijedlog (logika iz metodologije, kutija 6):
+  // 1) polazi se od najvišeg postotka u matrici;
+  // 2) ako su dva vodeća rezultata blizu (razlika < 15 % relativno),
+  //    presuđuju dodatni signali: najizgledniji ishod 1X2, Više/Manje 2.5 i BTTS.
+  const leader = list[0] as ScoreProb;
+  const goalsOver = pOverModel >= pUnderModel;
+  const bttsYes = pBtts >= 0.5;
+  const outcomeOf = (s: ScoreProb): "1" | "X" | "2" =>
+    s.home > s.away ? "1" : s.home === s.away ? "X" : "2";
+
+  const candidates = list.filter((s) => s.prob >= leader.prob * 0.85).slice(0, 5);
+  const scoreCandidate = (s: ScoreProb) => {
+    let pts = s.prob / leader.prob; // osnovna težina iz matrice
+    if (outcomeOf(s) === win.key) pts += 0.35;
+    if (s.home + s.away > 2.5 === goalsOver) pts += 0.18;
+    if (s.home > 0 && s.away > 0 === bttsYes) pts += 0.08;
+    return pts;
+  };
+  let fs = leader;
+  let bestPts = -Infinity;
+  for (const c of candidates) {
+    const pts = scoreCandidate(c);
+    if (pts > bestPts) {
+      bestPts = pts;
+      fs = c;
+    }
+  }
+  const second = (list.find((s) => s !== fs) as ScoreProb) ?? leader;
+  const reason =
+    fs === leader
+      ? `Najviša vjerojatnost u matrici, usklađena s ishodom ${win.key} i signalom ${goalsOver ? "Više" : "Manje"} od 2.5.`
+      : `Vodeći rezultat ${leader.home}-${leader.away} i ${fs.home}-${fs.away} su izjednačeni, pa presuđuju dodatni signali: ishod ${win.key}, ${goalsOver ? "Više" : "Manje"} od 2.5 i BTTS ${bttsYes ? "Da" : "Ne"}.`;
+
+  // Sukladnost modela s tržištem (kutija 7: provjera slaže li se model s kvotama)
+  const dev =
+    (Math.abs(pHomeWin - pHome) +
+      Math.abs(pDrawResult - pDraw) +
+      Math.abs(pAwayWin - pAway) +
+      Math.abs(pOverModel - pOver)) /
+    4;
+  const marketFit = Math.max(0, 1 - dev * 4);
+
+  // Provjere neuobičajenih kvota (kutija 9)
+  const warnings: string[] = [];
+  const range = (v: number, lo: number, hi: number, name: string) => {
+    if (v < lo || v > hi) warnings.push(`${name} (${v.toFixed(2)}) je izvan uobičajenog raspona ${lo.toFixed(2)} – ${hi.toFixed(2)}.`);
+  };
+  range(input.home, 1.2, 9, "Kvota na domaćina");
+  range(input.draw, 2.6, 7, "Kvota na neriješeno");
+  range(input.away, 1.2, 12, "Kvota na gosta");
+  range(input.over, 1.25, 3.2, "Kvota na Više od 2.5");
+  range(input.under, 1.25, 3.2, "Kvota na Manje od 2.5");
+  if (hasExact22) range(input.exact22 as number, 8, 30, "Kvota na točan rezultat 2-2");
+  if (margin1x2 > 0.12)
+    warnings.push(`Visoka kladioničarska margina (${(margin1x2 * 100).toFixed(1)} %) — predikcija je manje pouzdana.`);
+  if (marketFit < 0.8)
+    warnings.push("Model se ne poklapa savršeno s kvotama — tržišta 1X2 i Više/Manje nisu međusobno konzistentna.");
+
 
   return {
     margin1x2,
