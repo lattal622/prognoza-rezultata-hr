@@ -146,21 +146,28 @@ export function analyze(input: OddsInput): AnalysisResult {
   let calibrated22: number | undefined;
   let solverError: number | undefined;
 
-  if (input.exact22 && isFinite(input.exact22) && input.exact22 > 1.01) {
-    raw22Exact = 1 / input.exact22;
+  const hasExact22 = !!input.exact22 && isFinite(input.exact22) && input.exact22 > 1.01;
+  if (hasExact22) {
+    raw22Exact = 1 / (input.exact22 as number);
     market22 = raw22Exact / (1 + margin1x2);
     poisson22 = poisson(lambdaHome, 2) * poisson(lambdaAway, 2);
+  }
 
-    const sol = solveLambdas({
-      p1: pHome,
-      pX: pDraw,
-      p2: pAway,
-      pUnder,
-      p22: market22,
-    });
-    lambdaHome = sol.lambdaHome;
-    lambdaAway = sol.lambdaAway;
-    solverError = sol.error;
+  // Solver se izvodi UVIJEK: traži par (λ_dom, λ_gost) koji istovremeno
+  // najbolje reproducira 1X2 i Manje od 2.5. Ako je unesena kvota 2-2,
+  // ona ulazi kao dodatno sidro s većom težinom.
+  const sol = solveLambdas({
+    p1: pHome,
+    pX: pDraw,
+    p2: pAway,
+    pUnder,
+    ...(hasExact22 ? { p22: market22 } : {}),
+  });
+  lambdaHome = sol.lambdaHome;
+  lambdaAway = sol.lambdaAway;
+  solverError = sol.error;
+
+  if (hasExact22 && market22 !== undefined && poisson22 !== undefined) {
     calibrated22 = poisson(lambdaHome, 2) * poisson(lambdaAway, 2);
     factor22 = poisson22 > 0 ? market22 / poisson22 : undefined;
     calibrated = true;
