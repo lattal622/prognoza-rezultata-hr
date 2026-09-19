@@ -6,8 +6,8 @@ export interface SolverTargets {
   pX: number;
   p2: number;
   pUnder: number;
-  /** Fer vjerojatnost točnog rezultata 2-2 (sidro) */
-  p22: number;
+  /** Fer vjerojatnost točnog rezultata 2-2 (sidro, neobavezno) */
+  p22?: number | undefined;
 }
 
 export interface SolverSolution {
@@ -41,12 +41,16 @@ function errorFor(targets: SolverTargets, ph: number[], pa: number[]): number {
     }
   }
   const p22 = (ph[2] as number) * (pa[2] as number);
+  const anchor =
+    targets.p22 !== undefined && isFinite(targets.p22)
+      ? Math.pow(p22 - targets.p22, 2) * 5
+      : 0;
   return (
     Math.pow(c1 - targets.p1, 2) +
     Math.pow(cX - targets.pX, 2) +
     Math.pow(c2 - targets.p2, 2) +
     Math.pow(cUnder - targets.pUnder, 2) +
-    Math.pow(p22 - targets.p22, 2) * 5
+    anchor
   );
 }
 
