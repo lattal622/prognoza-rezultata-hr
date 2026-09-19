@@ -1,4 +1,4 @@
-import { solveLambdas } from "./solver";
+import { solveLambdas, tau } from "./solver";
 
 export interface FinalPrediction {
   score: string;
@@ -14,6 +14,11 @@ export interface FinalPrediction {
   outcomeLabel: string;
   outcomeProb: number;
   confidence: number;
+  /** Drugi najvjerojatniji rezultat */
+  secondScore: string;
+  secondProb: number;
+  /** Kratko obrazloženje zašto je odabran baš taj rezultat */
+  reason: string;
 }
 
 export interface OddsInput {
@@ -62,6 +67,12 @@ export interface AnalysisResult {
   /** Najizgledniji rezultat unutar najizglednijeg ishoda (1/X/2) */
   topByOutcome: { "1": ScoreProb; X: ScoreProb; "2": ScoreProb };
   coverage: number;
+  /** Dixon-Coles korekcija niskih rezultata */
+  rho: number;
+  /** Sukladnost modela s tržišnim vjerojatnostima (1 = savršeno) */
+  marketFit: number;
+  /** Upozorenja o neuobičajenim kvotama (kutija 7 i 9 iz metodologije) */
+  warnings: string[];
   /** Kalibracija pomoću kvote 2-2 */
   calibrated: boolean;
   raw22Exact?: number | undefined;
@@ -166,6 +177,8 @@ export function analyze(input: OddsInput): AnalysisResult {
   lambdaHome = sol.lambdaHome;
   lambdaAway = sol.lambdaAway;
   solverError = sol.error;
+  const rho = sol.rho;
+
 
   if (hasExact22 && market22 !== undefined && poisson22 !== undefined) {
     calibrated22 = poisson(lambdaHome, 2) * poisson(lambdaAway, 2);
@@ -173,19 +186,26 @@ export function analyze(input: OddsInput): AnalysisResult {
     calibrated = true;
   }
 
-  // Korak 3: Poissonova matrica 10x10
+  // Korak 3: Poissonova matrica 10x10 s Dixon-Coles korekcijom niskih rezultata
   const matrix: number[][] = [];
   const list: ScoreProb[] = [];
   let coverage = 0;
   for (let x = 0; x <= MAX_GOALS; x++) {
     const row: number[] = [];
     for (let y = 0; y <= MAX_GOALS; y++) {
-      const p = poisson(lambdaHome, x) * poisson(lambdaAway, y);
+      const p = poisson(lambdaHome, x) * poisson(lambdaAway, y) * tau(x, y, lambdaHome, lambdaAway, rho);
       row.push(p);
-      list.push({ home: x, away: y, prob: p });
       coverage += p;
     }
     matrix.push(row);
+  }
+  // Normalizacija na točno 100 %
+  for (let x = 0; x <= MAX_GOALS; x++) {
+    for (let y = 0; y <= MAX_GOALS; y++) {
+      const row = matrix[x] as number[];
+      row[y] = (row[y] as number) / coverage;
+      list.push({ home: x, away: y, prob: row[y] as number });
+    }
   }
 
   list.sort((a, b) => b.prob - a.prob);
@@ -223,8 +243,6 @@ export function analyze(input: OddsInput): AnalysisResult {
     "2": bestAwayWin as ScoreProb,
   };
 
-  // Konačni prijedlog: najizgledniji rezultat UNUTAR najizglednijeg ishoda (1/X/2).
-  // Time se izbjegava da model uvijek vrati remi kada tržište jasno favorizira jednu stranu.
   const outcomes: { key: "1" | "X" | "2"; label: string; p: number; score: ScoreProb }[] = [
     { key: "1", label: "Pobjeda domaćina", p: pHomeWin, score: topByOutcome["1"] },
     { key: "X", label: "Neriješeno", p: pDrawResult, score: topByOutcome.X },
@@ -232,7 +250,65 @@ export function analyze(input: OddsInput): AnalysisResult {
   ];
   outcomes.sort((a, b) => b.p - a.p);
   const win = outcomes[0] as (typeof outcomes)[number];
-  const fs = win.score;
+
+  // Konačni prijedlog (logika iz metodologije, kutija 6):
+  // 1) polazi se od najvišeg postotka u matrici;
+  // 2) ako su dva vodeća rezultata blizu (razlika < 15 % relativno),
+  //    presuđuju dodatni signali: najizgledniji ishod 1X2, Više/Manje 2.5 i BTTS.
+  const leader = list[0] as ScoreProb;
+  const goalsOver = pOverModel >= pUnderModel;
+  const bttsYes = pBtts >= 0.5;
+  const outcomeOf = (s: ScoreProb): "1" | "X" | "2" =>
+    s.home > s.away ? "1" : s.home === s.away ? "X" : "2";
+
+  const candidates = list.filter((s) => s.prob >= leader.prob * 0.85).slice(0, 5);
+  const scoreCandidate = (s: ScoreProb) => {
+    let pts = s.prob / leader.prob; // osnovna težina iz matrice
+    if (outcomeOf(s) === win.key) pts += 0.35;
+    if ((s.home + s.away > 2.5) === goalsOver) pts += 0.18;
+    if ((s.home > 0 && s.away > 0) === bttsYes) pts += 0.08;
+    return pts;
+  };
+  let fs = leader;
+  let bestPts = -Infinity;
+  for (const c of candidates) {
+    const pts = scoreCandidate(c);
+    if (pts > bestPts) {
+      bestPts = pts;
+      fs = c;
+    }
+  }
+  const second = (list.find((s) => s !== fs) as ScoreProb) ?? leader;
+  const reason =
+    fs === leader
+      ? `Najviša vjerojatnost u matrici, usklađena s ishodom ${win.key} i signalom ${goalsOver ? "Više" : "Manje"} od 2.5.`
+      : `Vodeći rezultat ${leader.home}-${leader.away} i ${fs.home}-${fs.away} su izjednačeni, pa presuđuju dodatni signali: ishod ${win.key}, ${goalsOver ? "Više" : "Manje"} od 2.5 i BTTS ${bttsYes ? "Da" : "Ne"}.`;
+
+  // Sukladnost modela s tržištem (kutija 7: provjera slaže li se model s kvotama)
+  const dev =
+    (Math.abs(pHomeWin - pHome) +
+      Math.abs(pDrawResult - pDraw) +
+      Math.abs(pAwayWin - pAway) +
+      Math.abs(pOverModel - pOver)) /
+    4;
+  const marketFit = Math.max(0, 1 - dev * 4);
+
+  // Provjere neuobičajenih kvota (kutija 9)
+  const warnings: string[] = [];
+  const range = (v: number, lo: number, hi: number, name: string) => {
+    if (v < lo || v > hi) warnings.push(`${name} (${v.toFixed(2)}) je izvan uobičajenog raspona ${lo.toFixed(2)} – ${hi.toFixed(2)}.`);
+  };
+  range(input.home, 1.2, 9, "Kvota na domaćina");
+  range(input.draw, 2.6, 7, "Kvota na neriješeno");
+  range(input.away, 1.2, 12, "Kvota na gosta");
+  range(input.over, 1.25, 3.2, "Kvota na Više od 2.5");
+  range(input.under, 1.25, 3.2, "Kvota na Manje od 2.5");
+  if (hasExact22) range(input.exact22 as number, 8, 30, "Kvota na točan rezultat 2-2");
+  if (margin1x2 > 0.12)
+    warnings.push(`Visoka kladioničarska margina (${(margin1x2 * 100).toFixed(1)} %) — predikcija je manje pouzdana.`);
+  if (marketFit < 0.8)
+    warnings.push("Model se ne poklapa savršeno s kvotama — tržišta 1X2 i Više/Manje nisu međusobno konzistentna.");
+
 
   return {
     margin1x2,
@@ -262,6 +338,9 @@ export function analyze(input: OddsInput): AnalysisResult {
     p22Model,
     topByOutcome,
     coverage,
+    rho,
+    marketFit,
+    warnings,
     calibrated,
     raw22Exact,
     market22,
@@ -278,10 +357,14 @@ export function analyze(input: OddsInput): AnalysisResult {
       marketOdds: 1 / (fs.prob * (1 + margin1x2)),
       expectedHomeGoals: lambdaHome,
       expectedAwayGoals: lambdaAway,
-      outcome: win.key,
-      outcomeLabel: win.label,
-      outcomeProb: win.p,
+      outcome: outcomeOf(fs),
+      outcomeLabel:
+        outcomeOf(fs) === "1" ? "Pobjeda domaćina" : outcomeOf(fs) === "X" ? "Neriješeno" : "Pobjeda gosta",
+      outcomeProb: outcomeOf(fs) === "1" ? pHomeWin : outcomeOf(fs) === "X" ? pDrawResult : pAwayWin,
       confidence: fs.prob,
+      secondScore: `${second.home}-${second.away}`,
+      secondProb: second.prob,
+      reason,
     },
   };
 }
