@@ -177,6 +177,8 @@ export function analyze(input: OddsInput): AnalysisResult {
   lambdaHome = sol.lambdaHome;
   lambdaAway = sol.lambdaAway;
   solverError = sol.error;
+  const rho = sol.rho;
+
 
   if (hasExact22 && market22 !== undefined && poisson22 !== undefined) {
     calibrated22 = poisson(lambdaHome, 2) * poisson(lambdaAway, 2);
@@ -184,19 +186,26 @@ export function analyze(input: OddsInput): AnalysisResult {
     calibrated = true;
   }
 
-  // Korak 3: Poissonova matrica 10x10
+  // Korak 3: Poissonova matrica 10x10 s Dixon-Coles korekcijom niskih rezultata
   const matrix: number[][] = [];
   const list: ScoreProb[] = [];
   let coverage = 0;
   for (let x = 0; x <= MAX_GOALS; x++) {
     const row: number[] = [];
     for (let y = 0; y <= MAX_GOALS; y++) {
-      const p = poisson(lambdaHome, x) * poisson(lambdaAway, y);
+      const p = poisson(lambdaHome, x) * poisson(lambdaAway, y) * tau(x, y, lambdaHome, lambdaAway, rho);
       row.push(p);
-      list.push({ home: x, away: y, prob: p });
       coverage += p;
     }
     matrix.push(row);
+  }
+  // Normalizacija na točno 100 %
+  for (let x = 0; x <= MAX_GOALS; x++) {
+    for (let y = 0; y <= MAX_GOALS; y++) {
+      const row = matrix[x] as number[];
+      row[y] = (row[y] as number) / coverage;
+      list.push({ home: x, away: y, prob: row[y] as number });
+    }
   }
 
   list.sort((a, b) => b.prob - a.prob);
